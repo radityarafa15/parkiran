@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@yield('title', 'Parkiran') · {{ config('app.name') }}</title>
+    <style>
+        :root {
+            --bg: #f6f7f9; --card: #fff; --ink: #1d232b; --muted: #5f6b7a; --line: #dfe3e8;
+            --available: #1f9d55; --occupied: #d64545; --unknown: #9aa5b1; --busy: #d9822b;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #14181d; --card: #1d232b; --ink: #eef1f4; --muted: #a3adb9; --line: #2e3640; }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+        main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+        a { color: inherit; }
+        h1 { font-size: 1.5rem; margin: 0 0 4px; }
+        .muted { color: var(--muted); }
+        .floors { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 24px; }
+        .floor-card { display: block; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--available); border-radius: 12px; padding: 20px; }
+        .floor-card[data-level="busy"] { border-left-color: var(--busy); }
+        .floor-card[data-level="full"] { border-left-color: var(--occupied); }
+        .floor-card h2 { margin: 0 0 8px; font-size: 1.15rem; }
+        .big { font-size: 2.25rem; font-weight: 700; }
+        .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; font-size: .9rem; }
+        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+        .zones { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px; }
+        .zone-chip { text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: .9rem; }
+        .zone-chip[data-full="1"] { opacity: .55; }
+        .zone h2 { font-size: 1rem; margin: 24px 0 8px; }
+        .slots { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+        .slot { border-radius: 6px; padding: 8px 2px; text-align: center; font-weight: 600; font-size: .75rem; color: #fff; }
+        .s-available { background: var(--available); }
+        .s-occupied { background: var(--occupied); }
+        .s-unknown { background: var(--unknown); }
+        .back { display: inline-block; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+<main>
+    @yield('content')
+</main>
+<script src="/vendor/pusher-8.4.0.min.js"></script>
+<script>
+    // Koneksi WebSocket ke Laravel Reverb (protokol Pusher). Jika gagal,
+    // halaman tetap memuat ulang data penuh secara berkala.
+    window.parkirRealtime = function (channels) {
+        const cfg = @json(config('parkir.realtime'));
+        if (!cfg.key || !window.Pusher) return;
+        const pusher = new Pusher(cfg.key, {
+            wsHost: cfg.host, wsPort: cfg.port, wssPort: cfg.port,
+            forceTLS: cfg.scheme === 'https', enabledTransports: ['ws', 'wss'], cluster: 'mt1',
+        });
+        for (const [name, events] of Object.entries(channels)) {
+            const channel = pusher.subscribe(name);
+            for (const [event, handler] of Object.entries(events)) channel.bind(event, handler);
+        }
+    };
+</script>
+@stack('scripts')
+</body>
+</html>
