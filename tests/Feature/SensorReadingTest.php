@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Events\FloorSummaryUpdated;
 use App\Events\SlotsChanged;
 use App\Models\Slot;
+use Illuminate\Broadcasting\Broadcasters\Broadcaster;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -80,6 +83,30 @@ class SensorReadingTest extends TestCase
 
         Event::assertNotDispatched(SlotsChanged::class);
         Event::assertNotDispatched(FloorSummaryUpdated::class);
+    }
+
+    public function test_readings_are_saved_even_when_reverb_is_down(): void
+    {
+        Broadcast::extend('down', fn () => new class extends Broadcaster
+        {
+            public function auth($request) {}
+
+            public function validAuthenticationResponse($request, $result) {}
+
+            public function broadcast(array $channels, $event, array $payload = []): void
+            {
+                throw new BroadcastException('Reverb tidak terjangkau');
+            }
+        });
+        config(['broadcasting.default' => 'down', 'broadcasting.connections.down' => ['driver' => 'down']]);
+
+        $slot = Slot::factory()->available()->create(['sensor_id' => 'US-A']);
+
+        $this->postJson('/api/sensor-readings', [
+            'readings' => [['sensor_id' => 'US-A', 'distance_cm' => 80]],
+        ], ['X-Sensor-Token' => 'secret'])->assertOk()->assertJson(['accepted' => 1, 'changed' => 1]);
+
+        $this->assertSame(Slot::OCCUPIED, $slot->fresh()->status());
     }
 
     public function test_validates_payload(): void

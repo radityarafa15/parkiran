@@ -6,6 +6,7 @@ use App\Events\FloorSummaryUpdated;
 use App\Events\SlotsChanged;
 use App\Models\Floor;
 use App\Models\Slot;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -78,15 +79,21 @@ class SensorReadingService
             return;
         }
 
-        foreach ($changed->groupBy('floor_id') as $floorId => $slots) {
-            foreach ($slots->chunk(self::SLOTS_PER_MESSAGE) as $chunk) {
-                SlotsChanged::dispatch($floorId, $chunk->map->toPublicArray()->values()->all());
+        // Data sudah tersimpan. Jika Reverb tidak terjangkau, cukup catat errornya:
+        // gateway tidak perlu mengirim ulang, dan klien memuat ulang data tiap 60 detik.
+        try {
+            foreach ($changed->groupBy('floor_id') as $floorId => $slots) {
+                foreach ($slots->chunk(self::SLOTS_PER_MESSAGE) as $chunk) {
+                    SlotsChanged::dispatch($floorId, $chunk->map->toPublicArray()->values()->all());
+                }
             }
-        }
 
-        Floor::withStatusCounts()
-            ->whereIn('id', $changed->pluck('floor_id')->unique())
-            ->get()
-            ->each(fn (Floor $floor) => FloorSummaryUpdated::dispatch($floor->summary()));
+            Floor::withStatusCounts()
+                ->whereIn('id', $changed->pluck('floor_id')->unique())
+                ->get()
+                ->each(fn (Floor $floor) => FloorSummaryUpdated::dispatch($floor->summary()));
+        } catch (BroadcastException $e) {
+            report($e);
+        }
     }
 }
