@@ -36,6 +36,23 @@
         .s-occupied { background: var(--occupied); }
         .s-unknown { background: var(--unknown); }
         .back { display: inline-block; margin-bottom: 16px; }
+        .small { font-size: .85rem; font-weight: 400; }
+        .admin-box { max-width: 360px; margin: 48px auto; }
+        .form { display: grid; gap: 12px; margin-top: 16px; }
+        .form label { display: grid; gap: 4px; font-size: .9rem; }
+        .form label.check { display: flex; gap: 8px; align-items: center; }
+        .form input[type=email], .form input[type=password] { font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+        .form button { font: inherit; font-weight: 600; padding: 10px; border: 0; border-radius: 8px; background: var(--available); color: #fff; cursor: pointer; }
+        .error { color: var(--occupied); margin: 0; }
+        .admin-bar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: flex-end; margin-bottom: 16px; font-size: .9rem; }
+        .admin-bar form { margin: 0; }
+        button.link { font: inherit; background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+        .section-title { font-size: 1.1rem; margin: 32px 0 12px; }
+        .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+        .table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+        .table th, .table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        .table tr:last-child td { border-bottom: 0; }
+        .pager { display: flex; gap: 16px; justify-content: center; margin-top: 16px; }
     </style>
 </head>
 <body>
