@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class MakeAdmin extends Command
 {
-    protected $signature = 'parkir:make-admin {email} {--name=Admin Parkir}';
+    protected $signature = 'parkir:make-admin {email} {--name=Admin Parkir} {--generate : Buat kata sandi acak tanpa bertanya}';
 
     protected $description = 'Buat akun admin (atau atur ulang kata sandinya) untuk dashboard sensor';
 
@@ -22,7 +22,7 @@ class MakeAdmin extends Command
             return self::FAILURE;
         }
 
-        $password = $this->input->isInteractive()
+        $password = $this->input->isInteractive() && ! $this->option('generate')
             ? $this->secret('Kata sandi (kosongkan untuk dibuatkan otomatis)')
             : null;
         $generated = blank($password);

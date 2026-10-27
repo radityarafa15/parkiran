@@ -16,19 +16,33 @@ Aplikasi untuk melihat lantai dan slot parkir mall yang masih kosong, untuk web 
 
 ## Menjalankan secara lokal
 
+Yang perlu terpasang: PHP 8.3+ (dengan ekstensi `pdo_sqlite`), Composer, dan Node.js (dipakai `composer dev` untuk menjalankan beberapa proses sekaligus).
+
 ```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-# isi PARKIR_SENSOR_TOKEN, REVERB_APP_KEY, REVERB_APP_SECRET di .env
-touch database/database.sqlite
-php artisan migrate --seed      # 3 lantai, 6.995 slot (pembagian per lantai di config/parkir.php)
+composer setup   # sekali saja: .env, kunci, database SQLite, 6.995 slot, akun admin
+composer dev     # web + Reverb (realtime) + scheduler + simulator sensor
+```
 
-php artisan serve               # web + API
-php artisan reverb:start        # WebSocket realtime
-php artisan schedule:work       # siaran ulang ringkasan tiap menit
-php artisan parkir:simulate     # simulator sensor
+`composer setup` mencetak email dan kata sandi admin. Lupa kata sandi? Jalankan `php artisan parkir:make-admin admin@parkiran.test` untuk mengaturnya ulang.
 
+Lalu buka:
+
+- http://localhost:8000: halaman pengunjung (daftar lantai, lalu slot per lantai)
+- http://localhost:8000/admin: dashboard sensor offline
+
+Hentikan dengan Ctrl+C. Tanpa Node.js, jalankan empat proses ini di terminal terpisah:
+
+```bash
+php artisan serve
+php artisan reverb:start
+php artisan schedule:work
+php artisan parkir:simulate
+```
+
+Perintah lain:
+
+```bash
+php artisan parkir:install --fresh   # hapus semua data lalu isi ulang 6.995 slot
 php artisan test
 ```
 
