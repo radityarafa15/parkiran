@@ -1,12 +1,23 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\GateController;
 use App\Http\Controllers\Admin\SensorDashboardController;
 use App\Http\Controllers\FloorPageController;
+use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [FloorPageController::class, 'index'])->name('floors.index');
 Route::get('/lantai/{floor}', [FloorPageController::class, 'show'])->name('floors.show');
+
+Route::prefix('reservasi')->name('reservations.')->controller(ReservationController::class)->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/baru', 'create')->name('create');
+    Route::post('/', 'store')->middleware('throttle:10,1')->name('store');
+    Route::get('/{reservation}', 'show')->name('show');
+    Route::post('/{reservation}/bayar', 'pay')->name('pay');
+    Route::get('/{reservation}/qr.svg', 'qr')->name('qr');
+});
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
@@ -16,6 +27,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('auth')->group(function () {
         Route::get('/', SensorDashboardController::class)->name('dashboard');
+        Route::get('/gerbang', [GateController::class, 'show'])->name('gate');
+        Route::post('/gerbang', [GateController::class, 'scan'])->name('gate.scan');
         Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     });
 });

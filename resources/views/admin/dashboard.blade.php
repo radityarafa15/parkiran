@@ -5,6 +5,7 @@
 @section('content')
     <div class="admin-bar">
         <a href="{{ route('floors.index') }}">Halaman pengunjung</a>
+        <a href="{{ route('admin.gate') }}">Gerbang</a>
         <span class="muted">{{ auth()->user()->email }}</span>
         <form method="POST" action="{{ route('admin.logout') }}">
             @csrf

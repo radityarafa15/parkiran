@@ -2,11 +2,13 @@
 enum SlotStatus {
   available,
   occupied,
+  reserved,
   unknown;
 
   static SlotStatus parse(String? value) => switch (value) {
         'available' => SlotStatus.available,
         'occupied' => SlotStatus.occupied,
+        'reserved' => SlotStatus.reserved,
         _ => SlotStatus.unknown,
       };
 }

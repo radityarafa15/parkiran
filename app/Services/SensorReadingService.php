@@ -2,19 +2,14 @@
 
 namespace App\Services;
 
-use App\Events\FloorSummaryUpdated;
-use App\Events\SlotsChanged;
-use App\Models\Floor;
 use App\Models\Slot;
-use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class SensorReadingService
 {
-    /** Batas slot per pesan WebSocket agar di bawah batas ukuran pesan Reverb. */
-    private const SLOTS_PER_MESSAGE = 100;
+    public function __construct(private SlotBroadcaster $broadcaster) {}
 
     /**
      * Simpan satu batch pembacaan sensor ultrasonik, lalu siarkan slot yang
@@ -61,39 +56,12 @@ class SensorReadingService
             }
         });
 
-        $this->broadcastChanges($changed);
+        $this->broadcaster->slotsChanged($changed);
 
         return [
             'accepted' => $accepted,
             'changed' => $changed->count(),
             'unknown_sensors' => array_values(array_unique($unknownSensors)),
         ];
-    }
-
-    /**
-     * @param  Collection<int, Slot>  $changed
-     */
-    private function broadcastChanges(Collection $changed): void
-    {
-        if ($changed->isEmpty()) {
-            return;
-        }
-
-        // Data sudah tersimpan. Jika Reverb tidak terjangkau, cukup catat errornya:
-        // gateway tidak perlu mengirim ulang, dan klien memuat ulang data tiap 60 detik.
-        try {
-            foreach ($changed->groupBy('floor_id') as $floorId => $slots) {
-                foreach ($slots->chunk(self::SLOTS_PER_MESSAGE) as $chunk) {
-                    SlotsChanged::dispatch($floorId, $chunk->map->toPublicArray()->values()->all());
-                }
-            }
-
-            Floor::withStatusCounts()
-                ->whereIn('id', $changed->pluck('floor_id')->unique())
-                ->get()
-                ->each(fn (Floor $floor) => FloorSummaryUpdated::dispatch($floor->summary()));
-        } catch (BroadcastException $e) {
-            report($e);
-        }
     }
 }

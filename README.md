@@ -46,14 +46,27 @@ php artisan parkir:install --fresh   # hapus semua data lalu isi ulang 6.995 slo
 php artisan test
 ```
 
+## Reservasi slot
+
+1. Pengunjung mengetuk slot hijau, mengisi nama dan plat nomor. Slot langsung ditahan (tampil biru) selama `PARKIR_RESERVATION_PAYMENT_MINUTES` (default 15 menit) sambil menunggu pembayaran.
+2. Biaya admin `PARKIR_RESERVATION_FEE` (default Rp10.000) dibayar. **Pembayaran masih simulasi**: tombol "Bayar" langsung menandai lunas. Payment gateway (misalnya Midtrans) cukup memanggil `ReservationService::pay()` setelah transaksi sukses.
+3. Setelah dibayar, pengunjung mendapat QR berisi kode reservasi. QR berlaku `PARKIR_RESERVATION_VALID_MINUTES` (default 120 menit). Jika belum di-scan di gerbang masuk sebelum itu, reservasi hangus dan biaya tidak dikembalikan.
+4. Petugas membuka `/admin/gerbang` (perlu login admin). Scanner QR USB mengetik kode lalu Enter; kode juga bisa diketik manual. Scan di **gerbang masuk** memulai jam parkir. Slot masih ditahan `PARKIR_RESERVATION_DRIVE_IN_MINUTES` (default 15 menit) selama pengemudi menuju slotnya. Scan di **gerbang keluar** menghentikan jam parkir dan menampilkan durasinya (dibulatkan ke atas per jam).
+5. Perintah terjadwal `parkir:expire-reservations` (tiap menit) menandai reservasi yang hangus dan melepas slotnya. Jika sensor mendeteksi mobil di slot yang direservasi, slot tetap tampil terisi.
+
+Reservasi yang dibuat di satu browser bisa dibuka lagi di `/reservasi`.
+
 ## API
 
 | Metode | Path | Keterangan |
 | --- | --- | --- |
-| GET | `/api/floors` | Ringkasan tiap lantai: total, kosong, terisi, tidak diketahui |
+| GET | `/api/floors` | Ringkasan tiap lantai: total, kosong, terisi, direservasi, tidak diketahui |
 | GET | `/api/floors/{id}` | Ringkasan lantai dan per zona |
 | GET | `/api/floors/{id}/slots?zone=A` | Status slot di lantai, bisa disaring per zona |
 | GET | `/api/realtime` | Alamat WebSocket Reverb untuk klien |
+| POST | `/api/reservations` | Buat reservasi: `slot_id`, `name`, `plate_number`. Balas 409 jika slot tidak tersedia |
+| GET | `/api/reservations/{kode}` | Status reservasi, batas waktu, lama parkir, dan `qr_svg_url` |
+| POST | `/api/reservations/{kode}/pay` | Bayar biaya admin (simulasi) |
 | POST | `/api/sensor-readings` | Untuk gateway sensor, wajib header `X-Sensor-Token` |
 
 Contoh kiriman gateway:
@@ -79,6 +92,8 @@ Balasan berisi jumlah pembacaan yang diterima (`accepted`), jumlah slot yang ber
 
 ## Belum dikerjakan
 
-- Dashboard admin untuk sensor yang offline.
+- Layar reservasi di aplikasi mobile (API-nya sudah ada; aplikasi sudah menampilkan slot yang direservasi).
+- Payment gateway sungguhan untuk biaya admin reservasi.
+- Tarif parkir per jam (sekarang hanya durasi dan jumlah jam yang dihitung).
 - Penyesuaian kode slot, zona, dan ID sensor dengan instalasi asli di mall.
 - Notifikasi push ("lantai hampir penuh") di aplikasi mobile.

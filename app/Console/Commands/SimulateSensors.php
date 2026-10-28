@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Reservation;
 use App\Models\Slot;
 use App\Services\SensorReadingService;
 use Illuminate\Console\Command;
@@ -25,13 +26,20 @@ class SimulateSensors extends Command
 
         do {
             $readings = [];
+            // Mobil yang sudah masuk gerbang lewat reservasi akan tiba di slotnya.
+            $arriving = Reservation::where('status', Reservation::PARKED)->pluck('slot_id')->flip();
 
-            foreach (Slot::select(['sensor_id', 'is_occupied'])->cursor() as $slot) {
+            foreach (Slot::select(['id', 'sensor_id', 'is_occupied', 'reserved_until'])->cursor() as $slot) {
                 $occupied = $slot->is_occupied ?? (mt_rand() / mt_getrandmax() < $occupancy);
 
-                // Mobil datang atau pergi: sekitar 2% slot berganti status tiap putaran,
-                // condong ke tingkat okupansi yang diminta.
-                if (mt_rand(1, 100) <= 2) {
+                if ($arriving->has($slot->id) && $slot->isReserved()) {
+                    $occupied = mt_rand(1, 100) <= 30 ? true : $occupied;
+                } elseif ($slot->isReserved()) {
+                    // Slot yang ditahan reservasi tidak diisi mobil lain.
+                    $occupied = false;
+                } elseif (mt_rand(1, 100) <= 2) {
+                    // Mobil datang atau pergi: sekitar 2% slot berganti status tiap putaran,
+                    // condong ke tingkat okupansi yang diminta.
                     $occupied = mt_rand() / mt_getrandmax() < $occupancy;
                 }
 

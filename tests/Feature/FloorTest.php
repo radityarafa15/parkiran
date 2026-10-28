@@ -39,8 +39,8 @@ class FloorTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.total', 3)
             ->assertJsonPath('data.zones', [
-                ['zone' => 'A', 'total' => 1, 'available' => 1, 'occupied' => 0, 'unknown' => 0],
-                ['zone' => 'B', 'total' => 2, 'available' => 1, 'occupied' => 1, 'unknown' => 0],
+                ['zone' => 'A', 'total' => 1, 'available' => 1, 'occupied' => 0, 'reserved' => 0, 'unknown' => 0],
+                ['zone' => 'B', 'total' => 2, 'available' => 1, 'occupied' => 1, 'reserved' => 0, 'unknown' => 0],
             ]);
     }
 

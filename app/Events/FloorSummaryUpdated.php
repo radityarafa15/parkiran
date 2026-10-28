@@ -14,7 +14,7 @@ class FloorSummaryUpdated implements ShouldBroadcastNow
     use Dispatchable;
 
     /**
-     * @param  array{id: int, name: string, level: int, total: int, available: int, occupied: int, unknown: int}  $summary
+     * @param  array{id: int, name: string, level: int, total: int, available: int, occupied: int, reserved: int, unknown: int}  $summary
      */
     public function __construct(public array $summary) {}
 
