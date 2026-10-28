@@ -16,10 +16,15 @@
     </div>
     <p class="muted small">Ketuk slot hijau untuk reservasi (biaya admin {{ \App\Models\Reservation::formatRupiah(config('parkir.reservation.fee')) }}).</p>
 
-    <nav class="zones">
+    <h2 class="section-title">Denah lantai</h2>
+    <p class="muted small">Denah skematis: ketuk zona untuk melihat slotnya. Warna zona menunjukkan sisa slot kosong.</p>
+    <nav class="zone-map" aria-label="Denah zona">
+        <div class="map-entrance">&darr; Pintu masuk / ramp</div>
         @foreach ($zones as $zone)
-            <a class="zone-chip" href="#zona-{{ $zone['zone'] }}" data-zone-chip="{{ $zone['zone'] }}" data-full="{{ $zone['available'] === 0 ? 1 : 0 }}">
-                Zona {{ $zone['zone'] }} · <strong data-zone-available>{{ $zone['available'] }}</strong> kosong
+            <a class="zone-tile" href="#zona-{{ $zone['zone'] }}" data-zone-chip="{{ $zone['zone'] }}" data-total="{{ $zone['total'] }}"
+               data-level="{{ $zone['available'] === 0 ? 'full' : ($zone['available'] <= $zone['total'] * 0.1 ? 'busy' : 'ok') }}">
+                <strong>{{ $zone['zone'] }}</strong>
+                <span><span data-zone-available>{{ $zone['available'] }}</span> kosong</span>
             </a>
         @endforeach
     </nav>
@@ -27,11 +32,21 @@
     @foreach ($slotsByZone as $zone => $slots)
         <section class="zone" id="zona-{{ $zone }}">
             <h2>Zona {{ $zone }}</h2>
-            <div class="slots">
-                @foreach ($slots as $slot)
-                    <a class="slot s-{{ $slot->status() }}" href="{{ route('reservations.create', ['slot' => $slot->id]) }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-') }}</a>
-                @endforeach
-            </div>
+            {{-- Tiap lajur: satu baris slot, jalur mobil, satu baris slot yang saling berhadapan. --}}
+            @foreach ($slots->chunk(config('parkir.map.slots_per_row') * 2) as $lane)
+                <div class="lane">
+                    @foreach ($lane->chunk(config('parkir.map.slots_per_row')) as $row)
+                        @if (! $loop->first)
+                            <div class="aisle" aria-hidden="true"><span>jalur &rarr;</span></div>
+                        @endif
+                        <div class="slot-row" style="--per-row: {{ config('parkir.map.slots_per_row') }}">
+                            @foreach ($row as $slot)
+                                <a class="slot s-{{ $slot->status() }}" href="{{ route('reservations.create', ['slot' => $slot->id]) }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-'.$zone) }}</a>
+                            @endforeach
+                        </div>
+                    @endforeach
+                </div>
+            @endforeach
         </section>
     @endforeach
 @endsection
@@ -55,7 +70,7 @@
             const zone = chip.dataset.zoneChip;
             const free = document.querySelectorAll(`[data-zone="${zone}"].s-available`).length;
             chip.querySelector('[data-zone-available]').textContent = free;
-            chip.dataset.full = free === 0 ? '1' : '0';
+            chip.dataset.level = free === 0 ? 'full' : (free <= chip.dataset.total * 0.1 ? 'busy' : 'ok');
         }
     }
 

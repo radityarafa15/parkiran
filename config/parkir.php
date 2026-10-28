@@ -35,6 +35,14 @@ return [
     'zone_size' => 100,
 
     /*
+    | Denah skematis: jumlah slot per baris di tampilan zona. Dua baris yang
+    | saling berhadapan dengan jalur mobil di tengahnya membentuk satu lajur.
+    */
+    'map' => [
+        'slots_per_row' => 10,
+    ],
+
+    /*
     | Reservasi slot: biaya admin (rupiah), batas waktu bayar, dan masa berlaku
     | setelah dibayar. Reservasi hangus jika QR belum di-scan di gerbang masuk
     | sebelum masa berlakunya habis; biaya tidak dikembalikan. Setelah masuk,

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'api.dart';
 import 'realtime.dart';
+import 'reservation_codes.dart';
 
 /// Menyediakan API dan satu koneksi realtime bersama untuk semua layar.
 class AppScope extends StatefulWidget {
@@ -10,8 +11,7 @@ class AppScope extends StatefulWidget {
   final ParkirApi api;
   final Widget child;
 
-  static AppScopeState of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_AppScopeData>()!.state;
+  static AppScopeState of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<_AppScopeData>()!.state;
 
   @override
   State<AppScope> createState() => AppScopeState();
@@ -19,6 +19,8 @@ class AppScope extends StatefulWidget {
 
 class AppScopeState extends State<AppScope> {
   Future<RealtimeClient?>? _realtime;
+
+  final reservationCodes = ReservationCodes();
 
   ParkirApi get api => widget.api;
 

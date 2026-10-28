@@ -54,7 +54,15 @@ php artisan test
 4. Petugas membuka `/admin/gerbang` (perlu login admin). Scanner QR USB mengetik kode lalu Enter; kode juga bisa diketik manual. Scan di **gerbang masuk** memulai jam parkir. Slot masih ditahan `PARKIR_RESERVATION_DRIVE_IN_MINUTES` (default 15 menit) selama pengemudi menuju slotnya. Scan di **gerbang keluar** menghentikan jam parkir dan menampilkan durasinya (dibulatkan ke atas per jam).
 5. Perintah terjadwal `parkir:expire-reservations` (tiap menit) menandai reservasi yang hangus dan melepas slotnya. Jika sensor mendeteksi mobil di slot yang direservasi, slot tetap tampil terisi.
 
-Reservasi yang dibuat di satu browser bisa dibuka lagi di `/reservasi`.
+Reservasi yang dibuat di satu browser bisa dibuka lagi di `/reservasi`; di aplikasi mobile lewat ikon tiket di daftar lantai. Halaman reservasi menampilkan hitung mundur sampai batas bayar atau batas masuk, lalu lama parkir setelah masuk.
+
+Di halaman gerbang, tombol **Scan pakai kamera** membaca QR lewat kamera HP atau laptop petugas. Browser hanya mengizinkan kamera di `https://` atau di `localhost`/`127.0.0.1`, jadi untuk HP petugas di jaringan lokal perlu https.
+
+Ringkasan reservasi dan pendapatan biaya admin per hari ada di `/admin/laporan`.
+
+## Denah
+
+Halaman lantai (web dan mobile) menampilkan denah skematis: peta zona berwarna sesuai sisa slot kosong, lalu tiap zona berupa lajur berisi dua baris slot yang berhadapan dengan jalur mobil di tengah (`config/parkir.php` → `map.slots_per_row`). Susunan ini belum mengikuti denah asli mall.
 
 ## API
 
@@ -92,7 +100,6 @@ Balasan berisi jumlah pembacaan yang diterima (`accepted`), jumlah slot yang ber
 
 ## Belum dikerjakan
 
-- Layar reservasi di aplikasi mobile (API-nya sudah ada; aplikasi sudah menampilkan slot yang direservasi).
 - Payment gateway sungguhan untuk biaya admin reservasi.
 - Tarif parkir per jam (sekarang hanya durasi dan jumlah jam yang dihitung).
 - Penyesuaian kode slot, zona, dan ID sensor dengan instalasi asli di mall.

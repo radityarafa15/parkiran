@@ -6,11 +6,11 @@ enum SlotStatus {
   unknown;
 
   static SlotStatus parse(String? value) => switch (value) {
-        'available' => SlotStatus.available,
-        'occupied' => SlotStatus.occupied,
-        'reserved' => SlotStatus.reserved,
-        _ => SlotStatus.unknown,
-      };
+    'available' => SlotStatus.available,
+    'occupied' => SlotStatus.occupied,
+    'reserved' => SlotStatus.reserved,
+    _ => SlotStatus.unknown,
+  };
 }
 
 class FloorSummary {
@@ -25,14 +25,14 @@ class FloorSummary {
   });
 
   factory FloorSummary.fromJson(Map<String, dynamic> json) => FloorSummary(
-        id: json['id'] as int,
-        name: json['name'] as String,
-        level: json['level'] as int,
-        total: json['total'] as int,
-        available: json['available'] as int,
-        occupied: json['occupied'] as int,
-        unknown: json['unknown'] as int,
-      );
+    id: json['id'] as int,
+    name: json['name'] as String,
+    level: json['level'] as int,
+    total: json['total'] as int,
+    available: json['available'] as int,
+    occupied: json['occupied'] as int,
+    unknown: json['unknown'] as int,
+  );
 
   final int id;
   final String name;
@@ -52,11 +52,11 @@ class Slot {
   const Slot({required this.id, required this.code, required this.zone, required this.status});
 
   factory Slot.fromJson(Map<String, dynamic> json) => Slot(
-        id: json['id'] as int,
-        code: json['code'] as String,
-        zone: json['zone'] as String,
-        status: SlotStatus.parse(json['status'] as String?),
-      );
+    id: json['id'] as int,
+    code: json['code'] as String,
+    zone: json['zone'] as String,
+    status: SlotStatus.parse(json['status'] as String?),
+  );
 
   final int id;
   final String code;
@@ -65,17 +65,20 @@ class Slot {
 
   /// Kode tanpa awalan lantai, misalnya "A001" dari "P1-A001".
   String get shortCode => code.contains('-') ? code.substring(code.indexOf('-') + 1) : code;
+
+  /// Nomor slot di dalam zonanya, misalnya "001" dari "P1-A001".
+  String get number => shortCode.startsWith(zone) ? shortCode.substring(zone.length) : shortCode;
 }
 
 class RealtimeConfig {
   const RealtimeConfig({required this.key, required this.host, required this.port, required this.scheme});
 
   factory RealtimeConfig.fromJson(Map<String, dynamic> json) => RealtimeConfig(
-        key: json['key'] as String? ?? '',
-        host: json['host'] as String? ?? 'localhost',
-        port: json['port'] as int? ?? 8080,
-        scheme: json['scheme'] as String? ?? 'http',
-      );
+    key: json['key'] as String? ?? '',
+    host: json['host'] as String? ?? 'localhost',
+    port: json['port'] as int? ?? 8080,
+    scheme: json['scheme'] as String? ?? 'http',
+  );
 
   final String key;
   final String host;
@@ -85,10 +88,91 @@ class RealtimeConfig {
   bool get isEnabled => key.isNotEmpty;
 
   Uri get socketUri => Uri(
-        scheme: scheme == 'https' ? 'wss' : 'ws',
-        host: host,
-        port: port,
-        path: '/app/$key',
-        queryParameters: {'protocol': '7', 'client': 'parkiran-flutter', 'version': '1.0'},
-      );
+    scheme: scheme == 'https' ? 'wss' : 'ws',
+    host: host,
+    port: port,
+    path: '/app/$key',
+    queryParameters: {'protocol': '7', 'client': 'parkiran-flutter', 'version': '1.0'},
+  );
+}
+
+/// Status reservasi seperti yang dikirim server.
+enum ReservationStatus {
+  pending,
+  paid,
+  parked,
+  done,
+  expired;
+
+  static ReservationStatus parse(String? value) =>
+      ReservationStatus.values.firstWhere((s) => s.name == value, orElse: () => ReservationStatus.expired);
+
+  /// Reservasi yang masih berjalan; halamannya perlu diperbarui berkala.
+  bool get isActive => this == pending || this == paid || this == parked;
+}
+
+class Reservation {
+  const Reservation({
+    required this.code,
+    required this.status,
+    required this.statusLabel,
+    required this.name,
+    required this.plateNumber,
+    required this.fee,
+    required this.slotCode,
+    required this.floorName,
+    required this.payBefore,
+    this.paidAt,
+    this.expiresAt,
+    this.checkedInAt,
+    this.checkedOutAt,
+    this.parkedMinutes,
+    this.parkedHours,
+  });
+
+  factory Reservation.fromJson(Map<String, dynamic> json) {
+    DateTime? time(String key) => json[key] == null ? null : DateTime.parse(json[key] as String).toLocal();
+    final slot = json['slot'] as Map<String, dynamic>;
+
+    return Reservation(
+      code: json['code'] as String,
+      status: ReservationStatus.parse(json['status'] as String?),
+      statusLabel: json['status_label'] as String,
+      name: json['name'] as String,
+      plateNumber: json['plate_number'] as String,
+      fee: json['fee'] as int,
+      slotCode: slot['code'] as String,
+      floorName: slot['floor'] as String,
+      payBefore: time('pay_before')!,
+      paidAt: time('paid_at'),
+      expiresAt: time('expires_at'),
+      checkedInAt: time('checked_in_at'),
+      checkedOutAt: time('checked_out_at'),
+      parkedMinutes: json['parked_minutes'] as int?,
+      parkedHours: json['parked_hours'] as int?,
+    );
+  }
+
+  final String code;
+  final ReservationStatus status;
+  final String statusLabel;
+  final String name;
+  final String plateNumber;
+  final int fee;
+  final String slotCode;
+  final String floorName;
+  final DateTime payBefore;
+  final DateTime? paidAt;
+  final DateTime? expiresAt;
+  final DateTime? checkedInAt;
+  final DateTime? checkedOutAt;
+  final int? parkedMinutes;
+  final int? parkedHours;
+
+  /// Batas waktu yang sedang berjalan: bayar, lalu masuk gerbang.
+  DateTime? get deadline => switch (status) {
+    ReservationStatus.pending => payBefore,
+    ReservationStatus.paid => expiresAt,
+    _ => null,
+  };
 }

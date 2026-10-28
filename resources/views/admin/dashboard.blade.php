@@ -3,15 +3,7 @@
 @section('title', 'Status sensor')
 
 @section('content')
-    <div class="admin-bar">
-        <a href="{{ route('floors.index') }}">Halaman pengunjung</a>
-        <a href="{{ route('admin.gate') }}">Gerbang</a>
-        <span class="muted">{{ auth()->user()->email }}</span>
-        <form method="POST" action="{{ route('admin.logout') }}">
-            @csrf
-            <button type="submit" class="link">Keluar</button>
-        </form>
-    </div>
+    @include('admin.nav')
 
     <h1>Status sensor</h1>
     <p class="muted">Sensor dianggap offline jika tidak melapor lebih dari {{ $staleMinutes }} menit. Slotnya tampil abu-abu di aplikasi pengunjung.</p>
