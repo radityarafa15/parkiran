@@ -1,6 +1,6 @@
 # Parkiran (mobile)
 
-Aplikasi Flutter untuk pengunjung mall: daftar lantai dengan jumlah slot kosong, lalu status tiap slot per zona. Status diperbarui langsung lewat WebSocket (Laravel Reverb), dengan muat ulang penuh tiap 60 detik sebagai cadangan.
+Aplikasi Flutter untuk pengunjung mall: daftar lantai dengan jumlah slot kosong, lalu denah slot per zona. Slot hijau bisa diketuk untuk reservasi (biaya admin, QR untuk gerbang). Status diperbarui langsung lewat WebSocket (Laravel Reverb), dengan muat ulang penuh tiap 60 detik sebagai cadangan.
 
 ## Menjalankan
 
@@ -21,9 +21,10 @@ Catatan: build debug Android mengizinkan http biasa untuk server lokal. Build ri
 
 ## Struktur
 
-- `lib/src/api.dart`: klien REST (`/api/floors`, `/api/floors/{id}/slots`, `/api/realtime`).
+- `lib/src/api.dart`: klien REST (`/api/floors`, `/api/floors/{id}/slots`, `/api/realtime`, `/api/reservations`).
+- `lib/src/reservation_codes.dart`: kode reservasi yang dibuat dari HP ini (disimpan dengan `shared_preferences`).
 - `lib/src/realtime.dart`: klien protokol Pusher minimal untuk Reverb (channel publik, ping/pong, sambung ulang otomatis).
-- `lib/src/screens/`: daftar lantai dan layar lantai (pilih zona, grid slot).
+- `lib/src/screens/`: daftar lantai, layar lantai (pilih zona, denah lajur), formulir reservasi, layar reservasi (hitung mundur, QR), dan daftar reservasi saya.
 
 ## Tes
 

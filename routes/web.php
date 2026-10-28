@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\GateController;
+use App\Http\Controllers\Admin\ReservationReportController;
 use App\Http\Controllers\Admin\SensorDashboardController;
 use App\Http\Controllers\FloorPageController;
 use App\Http\Controllers\ReservationController;
@@ -29,6 +30,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', SensorDashboardController::class)->name('dashboard');
         Route::get('/gerbang', [GateController::class, 'show'])->name('gate');
         Route::post('/gerbang', [GateController::class, 'scan'])->name('gate.scan');
+        Route::get('/laporan', ReservationReportController::class)->name('reports');
         Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     });
 });

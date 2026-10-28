@@ -7,6 +7,7 @@ import '../models.dart';
 import '../realtime.dart';
 import '../status_colors.dart';
 import 'floor_screen.dart';
+import 'my_reservations_screen.dart';
 
 class FloorListScreen extends StatefulWidget {
   const FloorListScreen({super.key});
@@ -35,9 +36,7 @@ class _FloorListScreenState extends State<FloorListScreen> {
       _realtime = client..subscribe('floors');
       _events = client.events.where((e) => e.channel == 'floors' && e.event == 'floor.summary').listen((e) {
         final updated = FloorSummary.fromJson(e.data);
-        setState(() => _floors = [
-              for (final f in _floors ?? <FloorSummary>[]) f.id == updated.id ? updated : f,
-            ]);
+        setState(() => _floors = [for (final f in _floors ?? <FloorSummary>[]) f.id == updated.id ? updated : f]);
       });
     });
   }
@@ -64,14 +63,23 @@ class _FloorListScreenState extends State<FloorListScreen> {
     final floors = _floors;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ketersediaan parkir')),
+      appBar: AppBar(
+        title: const Text('Ketersediaan parkir'),
+        actions: [
+          IconButton(
+            tooltip: 'Reservasi saya',
+            icon: const Icon(Icons.confirmation_number_outlined),
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyReservationsScreen())),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (_error != null)
-              Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!)),
+            if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!)),
             if (floors == null && _error == null) const Center(child: CircularProgressIndicator()),
             for (final floor in floors ?? <FloorSummary>[]) _FloorCard(floor: floor),
           ],
@@ -94,11 +102,11 @@ class _FloorCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => FloorScreen(floor: floor)),
-        ),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FloorScreen(floor: floor))),
         child: Container(
-          decoration: BoxDecoration(border: Border(left: BorderSide(color: floorColor(floor), width: 6))),
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: floorColor(floor), width: 6)),
+          ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
@@ -109,7 +117,9 @@ class _FloorCard extends StatelessWidget {
                     Text(floor.name, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
                     Text(
-                      floor.isFull ? 'Penuh' : '${formatCount(floor.occupied)} terisi · ${formatCount(floor.total)} total',
+                      floor.isFull
+                          ? 'Penuh'
+                          : '${formatCount(floor.occupied)} terisi · ${formatCount(floor.total)} total',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
@@ -118,8 +128,10 @@ class _FloorCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(formatCount(floor.available),
-                      style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    formatCount(floor.available),
+                    style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                   Text('slot kosong', style: theme.textTheme.bodySmall),
                 ],
               ),

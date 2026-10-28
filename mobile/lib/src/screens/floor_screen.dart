@@ -6,6 +6,7 @@ import '../app_scope.dart';
 import '../models.dart';
 import '../realtime.dart';
 import '../status_colors.dart';
+import 'reserve_sheet.dart';
 
 /// Satu lantai: pilih zona, lalu lihat status tiap slot.
 class FloorScreen extends StatefulWidget {
@@ -106,6 +107,8 @@ class _FloorScreenState extends State<FloorScreen> {
                     ),
                     const SizedBox(height: 8),
                     const _Legend(),
+                    const SizedBox(height: 4),
+                    Text('Ketuk slot hijau untuk reservasi (biaya admin Rp10.000).', style: theme.textTheme.bodySmall),
                   ],
                 ),
               ),
@@ -130,17 +133,16 @@ class _FloorScreenState extends State<FloorScreen> {
                 ),
               ),
             ),
+            // Denah skematis: tiap lajur berisi dua baris slot yang saling
+            // berhadapan dengan jalur mobil di tengahnya.
             SliverPadding(
               padding: const EdgeInsets.all(16),
-              sliver: SliverGrid.builder(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 64,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
-                  childAspectRatio: 1.4,
+              sliver: SliverList.builder(
+                itemCount: (zoneSlots.length / (_slotsPerRow * 2)).ceil(),
+                itemBuilder: (context, i) => _Lane(
+                  slots: zoneSlots.skip(i * _slotsPerRow * 2).take(_slotsPerRow * 2).toList(),
+                  onReserve: (slot) => ReserveSheet.show(context, slot: slot, floorName: widget.floor.name),
                 ),
-                itemCount: zoneSlots.length,
-                itemBuilder: (context, i) => _SlotTile(slot: zoneSlots[i]),
               ),
             ),
           ],
@@ -150,10 +152,69 @@ class _FloorScreenState extends State<FloorScreen> {
   }
 }
 
+/// Jumlah slot per baris pada denah, sama dengan versi web.
+const _slotsPerRow = 10;
+
+class _Lane extends StatelessWidget {
+  const _Lane({required this.slots, required this.onReserve});
+
+  final List<Slot> slots;
+  final void Function(Slot slot) onReserve;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget row(Iterable<Slot> slots) => Row(
+      children: [
+        for (final slot in slots)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: AspectRatio(
+                aspectRatio: 0.8,
+                child: _SlotTile(slot: slot, onTap: slot.status == SlotStatus.available ? () => onReserve(slot) : null),
+              ),
+            ),
+          ),
+        // Baris terakhir yang tidak penuh tetap rata dengan baris lain.
+        for (var i = slots.length; i < _slotsPerRow; i++) const Expanded(child: SizedBox()),
+      ],
+    );
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            row(slots.take(_slotsPerRow)),
+            if (slots.length > _slotsPerRow) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.symmetric(horizontal: BorderSide(color: theme.dividerColor, width: 1.5)),
+                ),
+                alignment: Alignment.center,
+                child: Text('jalur →', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+              ),
+              row(slots.skip(_slotsPerRow)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SlotTile extends StatelessWidget {
-  const _SlotTile({required this.slot});
+  const _SlotTile({required this.slot, this.onTap});
 
   final Slot slot;
+
+  /// Hanya slot kosong yang bisa diketuk untuk reservasi.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -166,12 +227,21 @@ class _SlotTile extends StatelessWidget {
 
     return Semantics(
       label: '${slot.code}, $label',
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: slotColor(slot.status), borderRadius: BorderRadius.circular(6)),
-        child: Text(
-          slot.shortCode,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+      button: onTap != null,
+      container: true,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: slotColor(slot.status), borderRadius: BorderRadius.circular(6)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              slot.number,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+          ),
         ),
       ),
     );
@@ -184,17 +254,17 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget item(Color color, String text) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
-            ),
-            const SizedBox(width: 6),
-            Text(text),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: 6),
+        Text(text),
+      ],
+    );
 
     return Wrap(
       spacing: 16,
