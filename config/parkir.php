@@ -35,6 +35,19 @@ return [
     'zone_size' => 100,
 
     /*
+    | Reservasi slot: biaya admin (rupiah), batas waktu bayar, dan masa berlaku
+    | setelah dibayar. Reservasi hangus jika QR belum di-scan di gerbang masuk
+    | sebelum masa berlakunya habis; biaya tidak dikembalikan. Setelah masuk,
+    | slot masih ditahan sebentar selama pengemudi menuju slotnya.
+    */
+    'reservation' => [
+        'fee' => (int) env('PARKIR_RESERVATION_FEE', 10000),
+        'payment_minutes' => (int) env('PARKIR_RESERVATION_PAYMENT_MINUTES', 15),
+        'valid_minutes' => (int) env('PARKIR_RESERVATION_VALID_MINUTES', 120),
+        'drive_in_minutes' => (int) env('PARKIR_RESERVATION_DRIVE_IN_MINUTES', 15),
+    ],
+
+    /*
     | Koneksi WebSocket (Laravel Reverb) yang dipakai web dan aplikasi mobile.
     | Host dan port di sini adalah alamat yang dijangkau pengguna, bukan alamat
     | internal server Reverb.

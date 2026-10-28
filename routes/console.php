@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Sensor yang berhenti melapor tidak memicu event; siarkan ulang ringkasan tiap menit.
 Schedule::command('parkir:broadcast-summaries')->everyMinute();
+
+// Reservasi yang tidak dibayar atau tidak masuk gerbang tepat waktu hangus; slotnya dilepas.
+Schedule::command('parkir:expire-reservations')->everyMinute();

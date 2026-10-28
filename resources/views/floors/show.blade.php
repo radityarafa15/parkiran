@@ -11,8 +11,10 @@
     <div class="legend">
         <span><span class="dot s-available"></span>Kosong</span>
         <span><span class="dot s-occupied"></span>Terisi</span>
+        <span><span class="dot s-reserved"></span>Direservasi</span>
         <span><span class="dot s-unknown"></span>Sensor tidak melapor</span>
     </div>
+    <p class="muted small">Ketuk slot hijau untuk reservasi (biaya admin {{ \App\Models\Reservation::formatRupiah(config('parkir.reservation.fee')) }}).</p>
 
     <nav class="zones">
         @foreach ($zones as $zone)
@@ -27,7 +29,7 @@
             <h2>Zona {{ $zone }}</h2>
             <div class="slots">
                 @foreach ($slots as $slot)
-                    <div class="slot s-{{ $slot->status() }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-') }}</div>
+                    <a class="slot s-{{ $slot->status() }}" href="{{ route('reservations.create', ['slot' => $slot->id]) }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-') }}</a>
                 @endforeach
             </div>
         </section>

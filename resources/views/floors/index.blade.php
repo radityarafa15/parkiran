@@ -3,6 +3,7 @@
 @section('title', 'Ketersediaan parkir')
 
 @section('content')
+    <nav class="topnav"><a href="{{ route('reservations.index') }}">Reservasi saya</a></nav>
     <h1>Ketersediaan parkir</h1>
     <p class="muted">Pilih lantai untuk melihat slot yang masih kosong. Diperbarui langsung.</p>
 

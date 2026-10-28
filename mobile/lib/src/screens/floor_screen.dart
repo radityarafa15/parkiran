@@ -160,6 +160,7 @@ class _SlotTile extends StatelessWidget {
     final label = switch (slot.status) {
       SlotStatus.available => 'kosong',
       SlotStatus.occupied => 'terisi',
+      SlotStatus.reserved => 'direservasi',
       SlotStatus.unknown => 'sensor tidak melapor',
     };
 
@@ -201,6 +202,7 @@ class _Legend extends StatelessWidget {
       children: [
         item(availableColor, 'Kosong'),
         item(occupiedColor, 'Terisi'),
+        item(reservedColor, 'Direservasi'),
         item(unknownColor, 'Sensor tidak melapor'),
       ],
     );
