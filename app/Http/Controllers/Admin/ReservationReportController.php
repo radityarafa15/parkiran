@@ -42,6 +42,7 @@ class ReservationReportController extends Controller
                 'created' => $day->count(),
                 'paid' => $day->whereNotNull('paid_at')->count(),
                 'revenue' => $day->whereNotNull('paid_at')->sum('fee'),
+                'parking' => $day->sum('parking_fee'),
                 'expired' => $day->filter(fn (Reservation $r) => $r->currentStatus() === Reservation::EXPIRED && $r->paid_at)->count(),
             ]);
 
@@ -52,6 +53,7 @@ class ReservationReportController extends Controller
                 'created' => $reservations->count(),
                 'paid' => $paid->count(),
                 'revenue' => $paid->sum('fee'),
+                'parking' => $reservations->sum('parking_fee'),
                 'waiting' => $byStatus->get(Reservation::PAID, 0),
                 'parked' => Reservation::where('status', Reservation::PARKED)->count(),
                 'done' => $byStatus->get(Reservation::DONE, 0),

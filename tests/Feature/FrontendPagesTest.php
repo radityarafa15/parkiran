@@ -19,25 +19,33 @@ class FrontendPagesTest extends TestCase
         return app(ReservationService::class)->reserve(Slot::factory()->available()->create(), 'Rafa', 'B 1 RF');
     }
 
-    public function test_floor_page_shows_zone_map_and_lanes(): void
+    public function test_floor_page_lays_each_zone_out_like_the_real_floor_plan(): void
     {
-        config(['parkir.map.slots_per_row' => 2]);
         $floor = Floor::factory()->create();
-        foreach (['P1-A001', 'P1-A002', 'P1-A003', 'P1-A004', 'P1-A005'] as $code) {
-            Slot::factory()->available()->for($floor)->create(['code' => $code, 'zone' => 'A']);
+        // Zona A penuh satu blok (60 slot); zona B blok terakhir yang tidak penuh (4 slot).
+        foreach (range(1, 60) as $n) {
+            Slot::factory()->available()->for($floor)->create(['code' => sprintf('P1-A%03d', $n), 'zone' => 'A']);
         }
-        Slot::factory()->occupied()->for($floor)->create(['code' => 'P1-B001', 'zone' => 'B']);
+        foreach (range(1, 4) as $n) {
+            Slot::factory()->occupied()->for($floor)->create(['code' => sprintf('P1-B%03d', $n), 'zone' => 'B']);
+        }
 
         $html = $this->get("/lantai/{$floor->id}")
             ->assertOk()
-            ->assertSee('Pintu masuk')
-            ->assertSee('data-zone-chip="B" data-total="1"', false)
+            ->assertSee('data-zone-chip="B" data-total="4"', false)
             ->getContent();
 
-        // Zona A: 5 slot, 2 per baris, jadi lajur 4 slot (2 baris + jalur) dan lajur 1 slot. Zona B: 1 lajur.
-        $this->assertSame(3, substr_count($html, 'class="lane"'));
-        $this->assertSame(1, substr_count($html, 'class="aisle"'));
+        // Tiap blok: 20 bay (7 + 6 + 7), satu CORE, dua jalur.
+        $this->assertSame(2, substr_count($html, 'class="plan"'));
+        $this->assertSame(40, substr_count($html, 'class="bay"'));
+        $this->assertSame(2, substr_count($html, '>CORE<'));
+        $this->assertSame(4, substr_count($html, 'class="plan-aisle"'));
+        // Blok B hanya punya 4 slot; sisa 56 tempat digambar kosong.
+        $this->assertSame(56, substr_count($html, 'class="slot s-none"'));
         $this->assertStringContainsString('data-level="full"', $html);
+
+        // Baris atas zona A berakhir di slot 021, pulau tengah mulai di slot 022.
+        $this->assertMatchesRegularExpression('/title="P1-A021">021<\/a>\s*<\/div>\s*<div aria-hidden="true"><\/div>\s*<div class="plan-aisle"/', $html);
     }
 
     public function test_reservation_page_counts_down_to_the_deadline(): void
@@ -59,6 +67,7 @@ class FrontendPagesTest extends TestCase
     {
         $service = app(ReservationService::class);
         $service->checkIn($service->pay($this->reservation()));
+        $service->checkOut($service->checkIn($service->pay($this->reservation())));
         $service->pay($forfeited = $this->reservation());
         $this->reservation();
 
@@ -68,10 +77,11 @@ class FrontendPagesTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->get('/admin/laporan?hari=7')
             ->assertOk()
-            ->assertSee('Rp20.000')
-            ->assertSee('dari 2 reservasi dibayar')
+            ->assertSee('Rp30.000')
+            ->assertSee('dari 3 reservasi dibayar')
             ->assertSee('1 batal karena tidak dibayar')
-            ->assertSee('50% dari yang dibayar')
+            ->assertSee('33% dari yang dibayar')
+            ->assertSee('Pendapatan biaya parkir</span><span class="big">Rp5.000</span>', false)
             ->assertSee('Sedang parkir sekarang</span><span class="big">1</span>', false)
             ->assertSee($forfeited->code);
     }

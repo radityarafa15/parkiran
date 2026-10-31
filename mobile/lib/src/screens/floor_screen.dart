@@ -23,6 +23,7 @@ class _FloorScreenState extends State<FloorScreen> {
   final _slots = <int, Slot>{};
   List<String> _zones = [];
   String? _zone;
+  FloorPlan _plan = FloorPlan.standard;
   bool _loading = true;
   String? _error;
   Timer? _refreshTimer;
@@ -38,6 +39,9 @@ class _FloorScreenState extends State<FloorScreen> {
 
     _load();
     _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) => _load());
+    AppScope.of(context).floorPlan.then((plan) {
+      if (mounted) setState(() => _plan = plan);
+    });
     AppScope.of(context).realtime.then((client) {
       if (!mounted || client == null) return;
       _realtime = client..subscribe(_channel);
@@ -60,7 +64,9 @@ class _FloorScreenState extends State<FloorScreen> {
         _slots
           ..clear()
           ..addEntries(slots.map((s) => MapEntry(s.id, s)));
-        _zones = slots.map((s) => s.zone).toSet().toList()..sort();
+        // A, B, ..., Z, AA, AB: zona lebih pendek dulu.
+        _zones = slots.map((s) => s.zone).toSet().toList()
+          ..sort((a, b) => a.length != b.length ? a.length - b.length : a.compareTo(b));
         _zone ??= _zones.isEmpty ? null : _zones.first;
         _loading = false;
         _error = null;
@@ -133,14 +139,13 @@ class _FloorScreenState extends State<FloorScreen> {
                 ),
               ),
             ),
-            // Denah skematis: tiap lajur berisi dua baris slot yang saling
-            // berhadapan dengan jalur mobil di tengahnya.
+            // Denah asli: satu zona = satu blok, digulir ke samping di layar sempit.
             SliverPadding(
               padding: const EdgeInsets.all(16),
-              sliver: SliverList.builder(
-                itemCount: (zoneSlots.length / (_slotsPerRow * 2)).ceil(),
-                itemBuilder: (context, i) => _Lane(
-                  slots: zoneSlots.skip(i * _slotsPerRow * 2).take(_slotsPerRow * 2).toList(),
+              sliver: SliverToBoxAdapter(
+                child: _PlanView(
+                  plan: _plan,
+                  slots: zoneSlots,
                   onReserve: (slot) => ReserveSheet.show(context, slot: slot, floorName: widget.floor.name),
                 ),
               ),
@@ -152,57 +157,121 @@ class _FloorScreenState extends State<FloorScreen> {
   }
 }
 
-/// Jumlah slot per baris pada denah, sama dengan versi web.
-const _slotsPerRow = 10;
+class _PlanView extends StatelessWidget {
+  const _PlanView({required this.plan, required this.slots, required this.onReserve});
 
-class _Lane extends StatelessWidget {
-  const _Lane({required this.slots, required this.onReserve});
+  final FloorPlan plan;
 
+  /// Slot satu zona, urut sesuai nomor.
   final List<Slot> slots;
   final void Function(Slot slot) onReserve;
+
+  static const _slotWidth = 30.0;
+  static const _slotHeight = 58.0;
+  static const _columnGap = 10.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bayWidth = plan.slotsPerBay * _slotWidth + 6;
+    var next = 0;
 
-    Widget row(Iterable<Slot> slots) => Row(
-      children: [
-        for (final slot in slots)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: AspectRatio(
-                aspectRatio: 0.8,
-                child: _SlotTile(slot: slot, onTap: slot.status == SlotStatus.available ? () => onReserve(slot) : null),
-              ),
-            ),
-          ),
-        // Baris terakhir yang tidak penuh tetap rata dengan baris lain.
-        for (var i = slots.length; i < _slotsPerRow; i++) const Expanded(child: SizedBox()),
-      ],
-    );
+    Widget bay() {
+      // Blok terakhir di lantai bisa tidak penuh: tempat yang tersisa digambar kosong.
+      final baySlots = [for (var i = 0; i < plan.slotsPerBay; i++, next++) next < slots.length ? slots[next] : null];
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Column(
+      return Container(
+        width: bayWidth,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.dividerColor),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
           children: [
-            row(slots.take(_slotsPerRow)),
-            if (slots.length > _slotsPerRow) ...[
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  border: Border.symmetric(horizontal: BorderSide(color: theme.dividerColor, width: 1.5)),
+            for (final slot in baySlots)
+              Padding(
+                padding: const EdgeInsets.all(1),
+                child: SizedBox(
+                  width: _slotWidth - 2,
+                  height: _slotHeight,
+                  child: slot == null
+                      ? DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: theme.dividerColor),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        )
+                      : _SlotTile(
+                          slot: slot,
+                          onTap: slot.status == SlotStatus.available ? () => onReserve(slot) : null,
+                        ),
                 ),
-                alignment: Alignment.center,
-                child: Text('jalur →', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
               ),
-              row(slots.skip(_slotsPerRow)),
-            ],
           ],
         ),
+      );
+    }
+
+    Widget core() => Container(
+      width: bayWidth,
+      height: _slotHeight + 6,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.onSurface, width: 2.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'CORE\nlift/tangga',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+
+    final children = <Widget>[];
+    for (final row in plan.rows) {
+      if (children.isNotEmpty) {
+        children.add(
+          Container(
+            width: plan.columns * (bayWidth + _columnGap),
+            height: 34,
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border.symmetric(horizontal: BorderSide(color: theme.dividerColor, width: 1.5)),
+            ),
+            child: Text('jalur', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+          ),
+        );
+      }
+      children.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var column = 1; column <= plan.columns; column++)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: _columnGap / 2),
+                child: row.bays.contains(column)
+                    ? bay()
+                    : row.core == column
+                    ? core()
+                    : SizedBox(width: bayWidth),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          border: Border.all(color: theme.dividerColor, width: 4),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
       ),
     );
   }

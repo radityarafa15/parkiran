@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'api.dart';
+import 'models.dart';
 import 'realtime.dart';
 import 'reservation_codes.dart';
 
@@ -19,6 +20,7 @@ class AppScope extends StatefulWidget {
 
 class AppScopeState extends State<AppScope> {
   Future<RealtimeClient?>? _realtime;
+  Future<FloorPlan>? _floorPlan;
 
   final reservationCodes = ReservationCodes();
 
@@ -33,6 +35,9 @@ class AppScopeState extends State<AppScope> {
         _realtime = null;
         return null;
       });
+
+  /// Denah blok dimuat sekali; jika gagal dipakai denah standar.
+  Future<FloorPlan> get floorPlan => _floorPlan ??= api.floorPlan().catchError((_) => FloorPlan.standard);
 
   @override
   void dispose() {

@@ -10,8 +10,9 @@ class DatabaseSeeder extends Seeder
 {
     /**
      * Lantai dan slot mobil sesuai config('parkir.layout'), total 6.995 slot.
-     * Slot dibagi ke zona A, B, C, ... berisi config('parkir.zone_size') slot.
-     * Kode slot: P1-A001, ID sensor: US-P1-A001.
+     * Slot dibagi ke zona A, B, C, ... berisi config('parkir.zone_size') slot
+     * (satu blok denah). Kode slot: P1-A001, ID sensor: US-P1-A001.
+     * Slot lama yang tidak ada lagi di susunan ini dihapus.
      */
     public function run(): void
     {
@@ -40,6 +41,12 @@ class DatabaseSeeder extends Seeder
             foreach (array_chunk($rows, 500) as $chunk) {
                 DB::table('slots')->upsert($chunk, ['code'], ['floor_id', 'zone', 'sensor_id', 'updated_at']);
             }
+
+            $codes = array_column($rows, 'code');
+            $floor->slots()->getQuery()->reorder()->pluck('code')
+                ->diff($codes)
+                ->chunk(500)
+                ->each(fn ($stale) => DB::table('slots')->whereIn('code', $stale->all())->delete());
         }
     }
 

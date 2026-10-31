@@ -22,10 +22,12 @@ Map<String, Object?> reservationJson(String status, {String label = 'Menunggu pe
     'pay_before': now.add(const Duration(minutes: 15)).toIso8601String(),
     'paid_at': status == 'pending' ? null : now.toIso8601String(),
     'expires_at': status == 'pending' ? null : now.add(const Duration(hours: 2)).toIso8601String(),
-    'checked_in_at': null,
-    'checked_out_at': null,
-    'parked_minutes': null,
-    'parked_hours': null,
+    'checked_in_at': status == 'done' ? now.subtract(const Duration(minutes: 150)).toIso8601String() : null,
+    'checked_out_at': status == 'done' ? now.toIso8601String() : null,
+    'parked_minutes': status == 'done' ? 150 : null,
+    'parked_hours': status == 'done' ? 3 : null,
+    'hourly_rate': 5000,
+    'parking_fee': status == 'done' ? 15000 : null,
     'qr_svg_url': 'http://parkir.test/reservasi/RSVABCD2345/qr.svg',
   };
 }
@@ -151,6 +153,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Slot P1-A001 sudah tidak tersedia. Silakan pilih slot lain.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('shows the parking fee after leaving through the exit gate', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'reservation_codes': ['RSVABCD2345'],
+    });
+    status = 'done';
+
+    await tester.pumpWidget(ParkiranApp(api: api()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reservasi saya'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('P1-A001 · Lantai P1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Parkir 2 jam 30 menit (3 jam dihitung).'), findsOneWidget);
+    expect(find.text('Rp15.000'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
   });

@@ -19,7 +19,8 @@ class FloorPageController extends Controller
         return view('floors.show', [
             'floor' => $floor,
             'zones' => $floor->zoneSummaries(),
-            'slotsByZone' => $floor->slots()->get()->groupBy('zone'),
+            'slotsByZone' => $floor->slots()->get()->groupBy('zone')
+                ->sortKeysUsing(fn ($a, $b) => [strlen($a), $a] <=> [strlen($b), $b]),
         ]);
     }
 }

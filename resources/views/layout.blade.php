@@ -62,15 +62,17 @@
         .form button.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
         .camera video { width: 100%; border-radius: 8px; background: #000; }
         .zone-map { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); margin: 8px 0 24px; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
-        .map-entrance { grid-column: 1 / -1; font-size: .8rem; color: var(--muted); text-align: center; border-bottom: 2px dashed var(--line); padding-bottom: 6px; }
         .zone-tile { display: grid; place-items: center; gap: 2px; text-decoration: none; color: #fff; border-radius: 8px; padding: 8px 4px; background: var(--available); font-size: .75rem; }
         .zone-tile strong { font-size: 1.1rem; }
         .zone-tile[data-level="busy"] { background: var(--busy); }
         .zone-tile[data-level="full"] { background: var(--occupied); }
-        .lane { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px; margin-bottom: 8px; }
-        .slot-row { display: grid; gap: 4px; grid-template-columns: repeat(var(--per-row), minmax(0, 1fr)); }
-        .slot-row .slot { padding: 10px 0; }
-        .aisle { position: relative; height: 22px; margin: 4px 0; border-top: 2px dashed var(--line); border-bottom: 2px dashed var(--line); font-size: .7rem; color: var(--muted); display: grid; place-items: center; }
+        .plan-scroll { overflow-x: auto; padding-bottom: 4px; }
+        .plan { display: grid; grid-template-columns: repeat(var(--columns), minmax(72px, 1fr)); gap: 6px 10px; min-width: 640px; padding: 12px; background: var(--card); border: 4px solid var(--line); border-radius: 6px; }
+        .bay { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 4px; }
+        .bay .slot { padding: 22px 0; font-size: .7rem; }
+        .s-none { background: transparent; border: 1px dashed var(--line); }
+        .core { display: grid; place-content: center; text-align: center; font-weight: 700; font-size: .8rem; border: 3px solid var(--ink); border-radius: 4px; }
+        .plan-aisle { grid-column: 1 / -1; height: 40px; display: grid; place-items: center; font-size: .75rem; color: var(--muted); border-top: 2px dashed var(--line); border-bottom: 2px dashed var(--line); }
         .tabs { display: flex; gap: 8px; margin: 16px 0; }
         .tabs a { text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
         .tabs a[aria-current] { background: var(--ink); color: var(--bg); }

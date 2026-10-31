@@ -132,11 +132,17 @@ class ReservationTest extends TestCase
 
         $this->travel(150)->minutes();
         $this->post('/admin/gerbang', ['code' => $reservation->code, 'arah' => 'keluar'])
-            ->assertSessionHas('status', fn ($message) => str_contains($message, '2 jam 30 menit (3 jam dihitung)'));
+            ->assertSessionHas('status', fn ($message) => str_contains($message, '2 jam 30 menit (3 jam × Rp5.000). Biaya parkir: Rp15.000.'));
 
         $reservation->refresh();
         $this->assertSame(Reservation::DONE, $reservation->status);
         $this->assertSame(150, $reservation->parkedMinutes());
+        $this->assertSame(15000, $reservation->parking_fee);
+        $this->get("/reservasi/{$reservation->code}")->assertSee('Rp15.000');
+
+        // Tarif yang berubah belakangan tidak mengubah tagihan yang sudah tercatat.
+        config(['parkir.hourly_rate' => 7000]);
+        $this->assertSame(15000, $reservation->fresh()->parkingFee());
         $this->assertNull($reservation->slot->reserved_until);
     }
 
@@ -148,6 +154,7 @@ class ReservationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.fee', 10000)
+            ->assertJsonPath('data.hourly_rate', 5000)
             ->json('data.code');
 
         $this->postJson("/api/reservations/{$code}/pay")->assertOk()->assertJsonPath('data.status', 'paid');
