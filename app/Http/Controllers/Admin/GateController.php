@@ -55,7 +55,7 @@ class GateController extends Controller
                 $service->checkOut($reservation);
                 $message = "Silakan keluar. {$reservation->plate_number} parkir ".Reservation::formatDuration($reservation->parkedMinutes())
                     ." ({$reservation->parkedHours()} jam × ".Reservation::formatRupiah(config('parkir.hourly_rate'))
-                    ."). Biaya parkir: ".Reservation::formatRupiah($reservation->parking_fee).'.';
+                    .'). Biaya parkir: '.Reservation::formatRupiah($reservation->parking_fee).'.';
             }
         } catch (ReservationException $e) {
             return $back->with('error', $e->getMessage());
