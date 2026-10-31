@@ -17,9 +17,8 @@
     <p class="muted small">Ketuk slot hijau untuk reservasi (biaya admin {{ \App\Models\Reservation::formatRupiah(config('parkir.reservation.fee')) }}).</p>
 
     <h2 class="section-title">Denah lantai</h2>
-    <p class="muted small">Denah skematis: ketuk zona untuk melihat slotnya. Warna zona menunjukkan sisa slot kosong.</p>
-    <nav class="zone-map" aria-label="Denah zona">
-        <div class="map-entrance">&darr; Pintu masuk / ramp</div>
+    <p class="muted small">Tiap zona adalah satu blok seperti denah asli lantai ini. Ketuk zona untuk melihat slotnya; warnanya menunjukkan sisa slot kosong.</p>
+    <nav class="zone-map" aria-label="Daftar zona">
         @foreach ($zones as $zone)
             <a class="zone-tile" href="#zona-{{ $zone['zone'] }}" data-zone-chip="{{ $zone['zone'] }}" data-total="{{ $zone['total'] }}"
                data-level="{{ $zone['available'] === 0 ? 'full' : ($zone['available'] <= $zone['total'] * 0.1 ? 'busy' : 'ok') }}">
@@ -32,21 +31,32 @@
     @foreach ($slotsByZone as $zone => $slots)
         <section class="zone" id="zona-{{ $zone }}">
             <h2>Zona {{ $zone }}</h2>
-            {{-- Tiap lajur: satu baris slot, jalur mobil, satu baris slot yang saling berhadapan. --}}
-            @foreach ($slots->chunk(config('parkir.map.slots_per_row') * 2) as $lane)
-                <div class="lane">
-                    @foreach ($lane->chunk(config('parkir.map.slots_per_row')) as $row)
+            <div class="plan-scroll">
+                <div class="plan" style="--columns: {{ config('parkir.map.columns') }}">
+                    @foreach (\App\Support\FloorPlan::rows($slots) as $row)
                         @if (! $loop->first)
-                            <div class="aisle" aria-hidden="true"><span>jalur &rarr;</span></div>
+                            <div class="plan-aisle" aria-hidden="true">jalur</div>
                         @endif
-                        <div class="slot-row" style="--per-row: {{ config('parkir.map.slots_per_row') }}">
-                            @foreach ($row as $slot)
-                                <a class="slot s-{{ $slot->status() }}" href="{{ route('reservations.create', ['slot' => $slot->id]) }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-'.$zone) }}</a>
-                            @endforeach
-                        </div>
+                        @foreach ($row as $cell)
+                            @if ($cell['type'] === 'bay')
+                                <div class="bay">
+                                    @foreach ($cell['slots'] as $slot)
+                                        @if ($slot)
+                                            <a class="slot s-{{ $slot->status() }}" href="{{ route('reservations.create', ['slot' => $slot->id]) }}" data-slot="{{ $slot->id }}" data-zone="{{ $zone }}" title="{{ $slot->code }}">{{ \Illuminate\Support\Str::after($slot->code, '-'.$zone) }}</a>
+                                        @else
+                                            <span class="slot s-none" aria-hidden="true"></span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @elseif ($cell['type'] === 'core')
+                                <div class="core">CORE<br><span class="small">lift/tangga</span></div>
+                            @else
+                                <div aria-hidden="true"></div>
+                            @endif
+                        @endforeach
                     @endforeach
                 </div>
-            @endforeach
+            </div>
         </section>
     @endforeach
 @endsection

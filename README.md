@@ -62,7 +62,15 @@ Ringkasan reservasi dan pendapatan biaya admin per hari ada di `/admin/laporan`.
 
 ## Denah
 
-Halaman lantai (web dan mobile) menampilkan denah skematis: peta zona berwarna sesuai sisa slot kosong, lalu tiap zona berupa lajur berisi dua baris slot yang berhadapan dengan jalur mobil di tengah (`config/parkir.php` → `map.slots_per_row`). Susunan ini belum mengikuti denah asli mall.
+Denah lantai dari pengelola (sama di tiap lantai) adalah satu **blok berisi 60 slot** di antara 8 kolom tiang. Baris atas berisi 7 bay × 3 slot, pulau tengah 6 bay × 3 slot (kolom 2-7), dan baris bawah 7 bay × 3 slot dengan CORE (lift/tangga) di kolom 8. Blok ini diulang di tiap lantai: satu zona (A, B, C, ...) = satu blok, sehingga total tetap 6.995 slot (2.332 / 2.332 / 2.331, ±39 blok per lantai; blok terakhir tidak penuh).
+
+Susunannya ada di `config/parkir.php` → `map` dan disediakan untuk aplikasi mobile lewat `GET /api/floor-plan`. Slot dinomori kiri ke kanan, atas ke bawah: A001-A021 baris atas, A022-A039 pulau tengah, A040-A060 baris bawah.
+
+Data lama (zona 100 slot) bisa disesuaikan dengan `php artisan db:seed`: slot yang tidak ada lagi di susunan baru dihapus beserta reservasinya.
+
+## Tarif parkir
+
+Saat QR di-scan di gerbang keluar, biaya parkir dihitung `PARKIR_HOURLY_RATE` (default Rp5.000) × jumlah jam (dibulatkan ke atas, minimal 1 jam) dan disimpan di reservasi, jadi perubahan tarif nanti tidak mengubah riwayat. Selama mobil masih parkir, halaman reservasi menampilkan perkiraan biaya sejauh ini. Pembayaran (biaya admin maupun parkir) masih simulasi.
 
 ## API
 
@@ -71,6 +79,7 @@ Halaman lantai (web dan mobile) menampilkan denah skematis: peta zona berwarna s
 | GET | `/api/floors` | Ringkasan tiap lantai: total, kosong, terisi, direservasi, tidak diketahui |
 | GET | `/api/floors/{id}` | Ringkasan lantai dan per zona |
 | GET | `/api/floors/{id}/slots?zone=A` | Status slot di lantai, bisa disaring per zona |
+| GET | `/api/floor-plan` | Denah satu blok (kolom, bay, CORE) untuk menggambar zona |
 | GET | `/api/realtime` | Alamat WebSocket Reverb untuk klien |
 | POST | `/api/reservations` | Buat reservasi: `slot_id`, `name`, `plate_number`. Balas 409 jika slot tidak tersedia |
 | GET | `/api/reservations/{kode}` | Status reservasi, batas waktu, lama parkir, dan `qr_svg_url` |
@@ -101,6 +110,5 @@ Balasan berisi jumlah pembacaan yang diterima (`accepted`), jumlah slot yang ber
 ## Belum dikerjakan
 
 - Payment gateway sungguhan untuk biaya admin reservasi.
-- Tarif parkir per jam (sekarang hanya durasi dan jumlah jam yang dihitung).
-- Penyesuaian kode slot, zona, dan ID sensor dengan instalasi asli di mall.
+- Penyesuaian kode slot dan ID sensor dengan instalasi asli di mall (susunan blok sudah mengikuti denah asli).
 - Notifikasi push ("lantai hampir penuh") di aplikasi mobile.

@@ -51,6 +51,8 @@ void main() {
     // Denah menampilkan nomor di dalam zona; pembaca layar menyebut kode lengkap.
     expect(tester.getSemantics(find.text('001')).label, 'P1-A001, kosong');
     expect(tester.getSemantics(find.text('002')).label, 'P1-A002, terisi');
+    // Denah blok asli: CORE di pojok kanan bawah, sisa tempat blok digambar kosong.
+    expect(find.text('CORE\nlift/tangga'), findsOneWidget);
 
     await tester.tap(find.text('Zona B · 1'));
     await tester.pumpAndSettle();

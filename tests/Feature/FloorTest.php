@@ -57,6 +57,30 @@ class FloorTest extends TestCase
             ->assertJsonPath('data.0.status', 'available');
     }
 
+    public function test_zones_are_listed_a_to_z_then_aa(): void
+    {
+        $floor = Floor::factory()->create();
+        foreach (['AA', 'B', 'A', 'Z'] as $zone) {
+            Slot::factory()->available()->for($floor)->create(['code' => "P1-{$zone}001", 'zone' => $zone]);
+        }
+
+        $this->getJson("/api/floors/{$floor->id}")
+            ->assertJsonPath('data.zones.*.zone', ['A', 'B', 'Z', 'AA']);
+
+        $html = $this->get("/lantai/{$floor->id}")->getContent();
+        $this->assertTrue(strpos($html, 'id="zona-Z"') < strpos($html, 'id="zona-AA"'));
+    }
+
+    public function test_floor_plan_api_describes_one_block(): void
+    {
+        $this->getJson('/api/floor-plan')
+            ->assertOk()
+            ->assertJsonPath('data.columns', 8)
+            ->assertJsonPath('data.slots_per_bay', 3)
+            ->assertJsonPath('data.rows.1.bays', [2, 3, 4, 5, 6, 7])
+            ->assertJsonPath('data.rows.2.core', 8);
+    }
+
     public function test_realtime_config_is_public(): void
     {
         config(['parkir.realtime' => ['key' => 'abc', 'host' => 'parkir.test', 'port' => 443, 'scheme' => 'https']]);

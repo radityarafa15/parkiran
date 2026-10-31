@@ -81,7 +81,8 @@ class Floor extends Model
         return DB::table('slots')
             ->where('floor_id', $this->id)
             ->groupBy('zone')
-            ->orderBy('zone')
+            // A, B, ..., Z, AA, AB: zona lebih pendek dulu.
+            ->orderByRaw('length(zone), zone')
             ->select('zone')
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when is_occupied = ? and last_seen_at >= ? and (reserved_until is null or reserved_until <= ?) then 1 else 0 end) as available', [false, $cutoff, $now])

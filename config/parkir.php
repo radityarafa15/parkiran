@@ -30,17 +30,26 @@ return [
     ],
 
     /*
-    | Jumlah slot per zona saat seeding (zona A, B, C, ...).
+    | Denah satu blok parkir sesuai gambar denah lantai dari pengelola:
+    | 8 kolom antar-tiang; tiap kotak (bay) berisi 3 slot berdampingan.
+    | Baris atas 7 bay, pulau tengah 6 bay (kolom 2-7), baris bawah 7 bay dan
+    | CORE (lift/tangga) di kolom 8. Slot dinomori kiri ke kanan, atas ke bawah,
+    | jadi satu blok berisi 60 slot. Satu zona (A, B, ...) = satu blok.
     */
-    'zone_size' => 100,
+    'map' => $map = [
+        'columns' => 8,
+        'slots_per_bay' => 3,
+        'rows' => [
+            ['bays' => [1, 2, 3, 4, 5, 6, 7]],
+            ['bays' => [2, 3, 4, 5, 6, 7]],
+            ['bays' => [1, 2, 3, 4, 5, 6, 7], 'core' => 8],
+        ],
+    ],
 
     /*
-    | Denah skematis: jumlah slot per baris di tampilan zona. Dua baris yang
-    | saling berhadapan dengan jalur mobil di tengahnya membentuk satu lajur.
+    | Jumlah slot per zona saat seeding: satu blok denah di atas.
     */
-    'map' => [
-        'slots_per_row' => 10,
-    ],
+    'zone_size' => array_sum(array_map(fn ($row) => count($row['bays']), $map['rows'])) * $map['slots_per_bay'],
 
     /*
     | Reservasi slot: biaya admin (rupiah), batas waktu bayar, dan masa berlaku
@@ -48,6 +57,12 @@ return [
     | sebelum masa berlakunya habis; biaya tidak dikembalikan. Setelah masuk,
     | slot masih ditahan sebentar selama pengemudi menuju slotnya.
     */
+    /*
+    | Tarif parkir per jam (rupiah). Lama parkir dihitung dari scan gerbang
+    | masuk sampai scan gerbang keluar, dibulatkan ke atas per jam.
+    */
+    'hourly_rate' => (int) env('PARKIR_HOURLY_RATE', 5000),
+
     'reservation' => [
         'fee' => (int) env('PARKIR_RESERVATION_FEE', 10000),
         'payment_minutes' => (int) env('PARKIR_RESERVATION_PAYMENT_MINUTES', 15),

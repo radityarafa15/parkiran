@@ -46,6 +46,14 @@ class FloorController extends Controller
     }
 
     /**
+     * Denah satu blok (= satu zona), sama untuk semua lantai.
+     */
+    public function plan(): JsonResponse
+    {
+        return response()->json(['data' => config('parkir.map')]);
+    }
+
+    /**
      * Alamat WebSocket untuk klien (web dan mobile).
      */
     public function realtime(): JsonResponse

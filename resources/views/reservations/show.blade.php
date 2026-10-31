@@ -29,11 +29,13 @@
                 <p class="qr-code">{{ $reservation->code }}</p>
             @elseif ($status === \App\Models\Reservation::PARKED)
                 <p class="countdown">Lama parkir <strong data-elapsed="{{ $reservation->checked_in_at->toIso8601String() }}">{{ \App\Models\Reservation::formatDuration($reservation->parkedMinutes()) }}</strong></p>
-                <p>Jam parkir berjalan sejak <strong>{{ $wib($reservation->checked_in_at) }}</strong>. Scan QR yang sama di gerbang keluar.</p>
+                <p>Jam parkir berjalan sejak <strong>{{ $wib($reservation->checked_in_at) }}</strong>. Biaya parkir sejauh ini <strong>{{ \App\Models\Reservation::formatRupiah($reservation->parkingFee()) }}</strong> ({{ \App\Models\Reservation::formatRupiah(config('parkir.hourly_rate')) }} per jam, dibulatkan ke atas). Scan QR yang sama di gerbang keluar.</p>
                 <img class="qr" src="{{ route('reservations.qr', $reservation) }}" alt="QR reservasi {{ $reservation->code }}">
                 <p class="qr-code">{{ $reservation->code }}</p>
             @elseif ($status === \App\Models\Reservation::DONE)
-                <p>Parkir {{ \App\Models\Reservation::formatDuration($reservation->parkedMinutes()) }} ({{ $reservation->parkedHours() }} jam dihitung). Terima kasih.</p>
+                <p>Parkir {{ \App\Models\Reservation::formatDuration($reservation->parkedMinutes()) }} ({{ $reservation->parkedHours() }} jam dihitung).</p>
+                <p class="countdown">Biaya parkir <strong>{{ \App\Models\Reservation::formatRupiah($reservation->parkingFee()) }}</strong></p>
+                <p class="muted small">Terima kasih.</p>
             @else
                 <p>{{ $reservation->paid_at ? 'QR tidak di-scan di gerbang masuk sebelum batas waktunya, jadi reservasi hangus dan biaya admin tidak dikembalikan.' : 'Biaya admin tidak dibayar tepat waktu, jadi slotnya dilepas.' }}</p>
                 <p><a href="{{ route('floors.show', $reservation->slot->floor) }}">Pilih slot lain</a></p>

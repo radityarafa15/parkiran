@@ -44,6 +44,10 @@ class ParkirApi {
     return Reservation.fromJson(await _post('/api/reservations/$code/pay', const {}) as Map<String, dynamic>);
   }
 
+  Future<FloorPlan> floorPlan() async {
+    return FloorPlan.fromJson(await _get('/api/floor-plan') as Map<String, dynamic>);
+  }
+
   Future<RealtimeConfig> realtimeConfig() async {
     return RealtimeConfig.fromJson(await _get('/api/realtime') as Map<String, dynamic>);
   }

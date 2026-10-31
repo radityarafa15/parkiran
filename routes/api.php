@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/realtime', [FloorController::class, 'realtime']);
 Route::get('/floors', [FloorController::class, 'index']);
+Route::get('/floor-plan', [FloorController::class, 'plan']);
 Route::get('/floors/{floor}', [FloorController::class, 'show']);
 Route::get('/floors/{floor}/slots', [FloorController::class, 'slots']);
 

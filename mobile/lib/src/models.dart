@@ -128,6 +128,8 @@ class Reservation {
     this.checkedOutAt,
     this.parkedMinutes,
     this.parkedHours,
+    this.hourlyRate,
+    this.parkingFee,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
@@ -150,6 +152,8 @@ class Reservation {
       checkedOutAt: time('checked_out_at'),
       parkedMinutes: json['parked_minutes'] as int?,
       parkedHours: json['parked_hours'] as int?,
+      hourlyRate: json['hourly_rate'] as int?,
+      parkingFee: json['parking_fee'] as int?,
     );
   }
 
@@ -168,6 +172,10 @@ class Reservation {
   final DateTime? checkedOutAt;
   final int? parkedMinutes;
   final int? parkedHours;
+  final int? hourlyRate;
+
+  /// Biaya parkir: ditagih saat keluar, atau perkiraan selama masih parkir.
+  final int? parkingFee;
 
   /// Batas waktu yang sedang berjalan: bayar, lalu masuk gerbang.
   DateTime? get deadline => switch (status) {
@@ -175,4 +183,47 @@ class Reservation {
     ReservationStatus.paid => expiresAt,
     _ => null,
   };
+}
+
+/// Denah satu blok (= satu zona), sama di semua lantai. Lihat config parkir.map.
+class FloorPlan {
+  const FloorPlan({required this.columns, required this.slotsPerBay, required this.rows});
+
+  factory FloorPlan.fromJson(Map<String, dynamic> json) => FloorPlan(
+    columns: json['columns'] as int,
+    slotsPerBay: json['slots_per_bay'] as int,
+    rows: [
+      for (final row in json['rows'] as List<dynamic>)
+        PlanRow(
+          bays: [for (final c in (row as Map<String, dynamic>)['bays'] as List<dynamic>) c as int],
+          core: row['core'] as int?,
+        ),
+    ],
+  );
+
+  /// Denah asli dari pengelola: atas 7 bay, tengah 6 bay, bawah 7 bay + CORE.
+  /// Dipakai jika server belum menyediakan /api/floor-plan.
+  static const standard = FloorPlan(
+    columns: 8,
+    slotsPerBay: 3,
+    rows: [
+      PlanRow(bays: [1, 2, 3, 4, 5, 6, 7]),
+      PlanRow(bays: [2, 3, 4, 5, 6, 7]),
+      PlanRow(bays: [1, 2, 3, 4, 5, 6, 7], core: 8),
+    ],
+  );
+
+  final int columns;
+  final int slotsPerBay;
+  final List<PlanRow> rows;
+}
+
+class PlanRow {
+  const PlanRow({required this.bays, this.core});
+
+  /// Kolom (mulai 1) yang berisi bay slot, dinomori kiri ke kanan.
+  final List<int> bays;
+
+  /// Kolom CORE (lift/tangga), jika ada di baris ini.
+  final int? core;
 }

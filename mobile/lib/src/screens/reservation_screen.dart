@@ -198,12 +198,27 @@ class _ReservationScreenState extends State<ReservationScreen> {
             style: theme.textTheme.displaySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
           const SizedBox(height: 8),
-          Text('Jam parkir berjalan sejak ${formatTime(r.checkedInAt!)}. Scan QR yang sama di gerbang keluar.'),
+          Text(
+            'Jam parkir berjalan sejak ${formatTime(r.checkedInAt!)}.'
+            '${r.parkingFee != null ? ' Biaya parkir sejauh ini ${formatRupiah(r.parkingFee!)}' : ''}'
+            '${r.hourlyRate != null ? ' (${formatRupiah(r.hourlyRate!)} per jam, dibulatkan ke atas).' : '.'}'
+            ' Scan QR yang sama di gerbang keluar.',
+          ),
           Center(child: qr()),
         ],
       ),
-      ReservationStatus.done => Text(
-        'Parkir ${formatMinutes(r.parkedMinutes ?? 0)} (${r.parkedHours ?? 1} jam dihitung). Terima kasih.',
+      ReservationStatus.done => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Parkir ${formatMinutes(r.parkedMinutes ?? 0)} (${r.parkedHours ?? 1} jam dihitung).'),
+          if (r.parkingFee != null) ...[
+            const SizedBox(height: 8),
+            const Text('Biaya parkir'),
+            Text(formatRupiah(r.parkingFee!), style: theme.textTheme.displaySmall),
+          ],
+          const SizedBox(height: 8),
+          const Text('Terima kasih.'),
+        ],
       ),
       ReservationStatus.expired => Text(
         r.paidAt != null

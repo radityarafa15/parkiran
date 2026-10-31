@@ -28,13 +28,14 @@ class Reservation extends Model
 
     protected $fillable = [
         'code', 'slot_id', 'name', 'plate_number', 'fee', 'status',
-        'pay_before', 'paid_at', 'expires_at', 'checked_in_at', 'checked_out_at',
+        'pay_before', 'paid_at', 'expires_at', 'checked_in_at', 'checked_out_at', 'parking_fee',
     ];
 
     protected function casts(): array
     {
         return [
             'fee' => 'integer',
+            'parking_fee' => 'integer',
             'pay_before' => 'datetime',
             'paid_at' => 'datetime',
             'expires_at' => 'datetime',
@@ -105,6 +106,21 @@ class Reservation extends Model
         return $minutes === null ? null : max(1, (int) ceil($minutes / 60));
     }
 
+    /**
+     * Biaya parkir: yang ditagih saat keluar, atau perkiraan sejauh ini
+     * selama mobil masih parkir.
+     */
+    public function parkingFee(): ?int
+    {
+        if ($this->parking_fee !== null) {
+            return $this->parking_fee;
+        }
+
+        $hours = $this->parkedHours();
+
+        return $hours === null ? null : $hours * config('parkir.hourly_rate');
+    }
+
     public static function formatDuration(int $minutes): string
     {
         $hours = intdiv($minutes, 60);
@@ -146,6 +162,8 @@ class Reservation extends Model
             'checked_out_at' => $this->checked_out_at?->toIso8601String(),
             'parked_minutes' => $this->parkedMinutes(),
             'parked_hours' => $this->parkedHours(),
+            'hourly_rate' => config('parkir.hourly_rate'),
+            'parking_fee' => $this->parkingFee(),
             'qr_svg_url' => route('reservations.qr', $this),
         ];
     }

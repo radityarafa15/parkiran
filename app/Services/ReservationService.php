@@ -77,15 +77,18 @@ class ReservationService
     }
 
     /**
-     * QR di-scan di gerbang keluar: jam parkir berhenti.
+     * QR di-scan di gerbang keluar: jam parkir berhenti dan biaya parkir dihitung.
      */
     public function checkOut(Reservation $reservation): Reservation
     {
         $this->ensureStatus($reservation, Reservation::PARKED);
 
+        $reservation->checked_out_at = now();
+
         return $this->update($reservation, [
             'status' => Reservation::DONE,
-            'checked_out_at' => now(),
+            'checked_out_at' => $reservation->checked_out_at,
+            'parking_fee' => $reservation->parkedHours() * config('parkir.hourly_rate'),
         ], fn () => null);
     }
 
