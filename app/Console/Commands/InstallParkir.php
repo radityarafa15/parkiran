@@ -11,7 +11,7 @@ class InstallParkir extends Command
 {
     protected $signature = 'parkir:install
         {--admin=admin@parkiran.test : Email akun admin pertama}
-        {--fresh : Hapus semua data lalu isi ulang 6.995 slot}';
+        {--fresh : Hapus semua data lalu isi ulang 24.000 slot}';
 
     protected $description = 'Siapkan aplikasi untuk dijalankan di komputer sendiri: kunci, database, data slot, akun admin';
 

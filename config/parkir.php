@@ -20,13 +20,13 @@ return [
     'stale_after_seconds' => (int) env('PARKIR_STALE_AFTER_SECONDS', 300),
 
     /*
-    | Denah awal untuk seeder: jumlah slot mobil per lantai (total 6.995).
-    | Pembagian per lantai masih perkiraan; sesuaikan dengan denah mall.
+    | Denah awal untuk seeder: jumlah slot mobil per lantai. Angka resmi dari
+    | pengelola mall: 8.000 slot per lantai, total 24.000.
     */
     'layout' => [
-        1 => 2332,
-        2 => 2332,
-        3 => 2331,
+        1 => 8000,
+        2 => 8000,
+        3 => 8000,
     ],
 
     /*
@@ -54,7 +54,8 @@ return [
     /*
     | Reservasi slot: biaya admin (rupiah), batas waktu bayar, dan masa berlaku
     | setelah dibayar. Reservasi hangus jika QR belum di-scan di gerbang masuk
-    | sebelum masa berlakunya habis; biaya tidak dikembalikan. Setelah masuk,
+    | sebelum masa berlakunya habis; biaya tidak dikembalikan. Satu plat nomor
+    | hanya boleh punya satu reservasi aktif (1 orang 1 mobil). Setelah masuk,
     | slot masih ditahan sebentar selama pengemudi menuju slotnya.
     */
     /*
@@ -68,6 +69,8 @@ return [
         'payment_minutes' => (int) env('PARKIR_RESERVATION_PAYMENT_MINUTES', 15),
         'valid_minutes' => (int) env('PARKIR_RESERVATION_VALID_MINUTES', 120),
         'drive_in_minutes' => (int) env('PARKIR_RESERVATION_DRIVE_IN_MINUTES', 15),
+        // Batal dalam sekian menit setelah bayar = biaya admin dikembalikan penuh.
+        'refund_minutes' => (int) env('PARKIR_RESERVATION_REFUND_MINUTES', 5),
     ],
 
     /*

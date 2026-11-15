@@ -1,6 +1,6 @@
 # Parkiran
 
-Aplikasi untuk melihat lantai dan slot parkir mall yang masih kosong, untuk web dan mobile. Status slot berasal dari sensor ultrasonik di atas tiap slot. Data awal: 3 lantai, 6.995 slot mobil, dibagi ke zona berisi 100 slot.
+Aplikasi untuk melihat lantai dan slot parkir mall yang masih kosong, untuk web dan mobile. Status slot berasal dari sensor ultrasonik di atas tiap slot. Data awal: 3 lantai, 24.000 slot mobil (8.000 per lantai), dibagi ke zona berisi 60 slot (satu blok denah).
 
 - Backend + web: Laravel (folder ini)
 - Realtime: Laravel Reverb (WebSocket, protokol Pusher)
@@ -19,7 +19,7 @@ Aplikasi untuk melihat lantai dan slot parkir mall yang masih kosong, untuk web 
 Yang perlu terpasang: PHP 8.3+ (dengan ekstensi `pdo_sqlite`), Composer, dan Node.js (dipakai `composer dev` untuk menjalankan beberapa proses sekaligus).
 
 ```bash
-composer setup   # sekali saja: .env, kunci, database SQLite, 6.995 slot, akun admin
+composer setup   # sekali saja: .env, kunci, database SQLite, 24.000 slot, akun admin
 composer dev     # web + Reverb (realtime) + scheduler + simulator sensor
 ```
 
@@ -42,7 +42,7 @@ php artisan parkir:simulate
 Perintah lain:
 
 ```bash
-php artisan parkir:install --fresh   # hapus semua data lalu isi ulang 6.995 slot
+php artisan parkir:install --fresh   # hapus semua data lalu isi ulang 24.000 slot
 php artisan test
 ```
 
@@ -51,8 +51,15 @@ php artisan test
 1. Pengunjung mengetuk slot hijau, mengisi nama dan plat nomor. Slot langsung ditahan (tampil biru) selama `PARKIR_RESERVATION_PAYMENT_MINUTES` (default 15 menit) sambil menunggu pembayaran.
 2. Biaya admin `PARKIR_RESERVATION_FEE` (default Rp10.000) dibayar. **Pembayaran masih simulasi**: tombol "Bayar" langsung menandai lunas. Payment gateway (misalnya Midtrans) cukup memanggil `ReservationService::pay()` setelah transaksi sukses.
 3. Setelah dibayar, pengunjung mendapat QR berisi kode reservasi. QR berlaku `PARKIR_RESERVATION_VALID_MINUTES` (default 120 menit). Jika belum di-scan di gerbang masuk sebelum itu, reservasi hangus dan biaya tidak dikembalikan.
-4. Petugas membuka `/admin/gerbang` (perlu login admin). Scanner QR USB mengetik kode lalu Enter; kode juga bisa diketik manual. Scan di **gerbang masuk** memulai jam parkir. Slot masih ditahan `PARKIR_RESERVATION_DRIVE_IN_MINUTES` (default 15 menit) selama pengemudi menuju slotnya. Scan di **gerbang keluar** menghentikan jam parkir dan menampilkan durasinya (dibulatkan ke atas per jam).
-5. Perintah terjadwal `parkir:expire-reservations` (tiap menit) menandai reservasi yang hangus dan melepas slotnya. Jika sensor mendeteksi mobil di slot yang direservasi, slot tetap tampil terisi.
+4. Petugas membuka `/admin/gerbang` (perlu login admin atau petugas gerbang). Scanner QR USB mengetik kode lalu Enter; kode juga bisa diketik manual. Scan di **gerbang masuk** memulai jam parkir. Slot masih ditahan `PARKIR_RESERVATION_DRIVE_IN_MINUTES` (default 15 menit) selama pengemudi menuju slotnya. Scan di **gerbang keluar** menghentikan jam parkir dan menampilkan durasinya (dibulatkan ke atas per jam).
+5. Perintah terjadwal `parkir:expire-reservations` (tiap menit) menandai reservasi yang hangus dan melepas slotnya. Jika sensor mendeteksi mobil di slot yang direservasi, slot tetap tampil terisi. Jika sensor slot yang direservasi mati, slot tetap ditahan dan tidak pernah dianggap kosong.
+
+Aturan tambahan:
+
+- **1 orang 1 mobil.** Satu plat nomor hanya boleh punya satu reservasi aktif (belum dibayar, menunggu masuk, atau sedang parkir). Penulisan plat diseragamkan, jadi `b1234xyz` dan `B 1234 XYZ` dianggap sama. Reservasi kedua ditolak (API: 409). Browser yang membuat reservasi pertama diarahkan ke tiketnya; kode dan QR tidak pernah ditunjukkan ke orang lain yang mengetik plat yang sama.
+- **Batal dan refund.** Reservasi bisa dibatalkan sebelum masuk gerbang; slotnya langsung dilepas. Batal dalam `PARKIR_RESERVATION_REFUND_MINUTES` (default 5 menit) setelah bayar = biaya admin dikembalikan penuh. Lewat dari itu tidak dikembalikan. Refund masih simulasi, sama seperti pembayarannya, dan laporan pendapatan sudah dikurangi refund.
+- **QR sekali masuk.** Scan kedua di gerbang masuk ditolak dengan pesan "QR sudah dipakai" beserta jam masuk pertama.
+- **Lapor ke security.** Dari halaman tiket (dibayar atau sedang parkir) pengunjung bisa melapor: slot ditempati mobil lain, terhalang barang, atau lainnya. Jika ditempati mobil lain, slot kosong terdekat di lantai yang sama (zona yang sama dulu) langsung ditahan sebagai pengganti dan QR tetap sama.
 
 Reservasi yang dibuat di satu browser bisa dibuka lagi di `/reservasi`; di aplikasi mobile lewat ikon tiket di daftar lantai. Halaman reservasi menampilkan hitung mundur sampai batas bayar atau batas masuk, lalu lama parkir setelah masuk.
 
@@ -60,9 +67,21 @@ Di halaman gerbang, tombol **Scan pakai kamera** membaca QR lewat kamera HP atau
 
 Ringkasan reservasi dan pendapatan biaya admin per hari ada di `/admin/laporan`.
 
+## Akun staf
+
+Ada tiga peran. Semua masuk lewat `/admin/login` dan langsung diarahkan ke halamannya.
+
+| Peran | Halaman | Buat akun |
+| --- | --- | --- |
+| Admin | Semua: status sensor, gerbang, laporan security, laporan pendapatan | `php artisan parkir:make-admin admin@mall.test` |
+| Petugas gerbang | `/admin/gerbang` saja | `php artisan parkir:make-admin gerbang@mall.test --role=petugas --name="Andi"` |
+| Security | `/admin/security`: laporan pengunjung, tombol Tangani dan Tandai selesai | `php artisan parkir:make-admin satpam@mall.test --role=security --name="Budi"` |
+
+Akun yang dibuat sebelum ada peran otomatis menjadi admin.
+
 ## Denah
 
-Denah lantai dari pengelola (sama di tiap lantai) adalah satu **blok berisi 60 slot** di antara 8 kolom tiang. Baris atas berisi 7 bay × 3 slot, pulau tengah 6 bay × 3 slot (kolom 2-7), dan baris bawah 7 bay × 3 slot dengan CORE (lift/tangga) di kolom 8. Blok ini diulang di tiap lantai: satu zona (A, B, C, ...) = satu blok, sehingga total tetap 6.995 slot (2.332 / 2.332 / 2.331, ±39 blok per lantai; blok terakhir tidak penuh).
+Denah lantai dari pengelola (sama di tiap lantai) adalah satu **blok berisi 60 slot** di antara 8 kolom tiang. Baris atas berisi 7 bay × 3 slot, pulau tengah 6 bay × 3 slot (kolom 2-7), dan baris bawah 7 bay × 3 slot dengan CORE (lift/tangga) di kolom 8. Blok ini diulang di tiap lantai: satu zona (A, B, C, ...) = satu blok, dengan 8.000 slot per lantai (total 24.000, 134 blok per lantai; blok terakhir tidak penuh).
 
 Susunannya ada di `config/parkir.php` → `map` dan disediakan untuk aplikasi mobile lewat `GET /api/floor-plan`. Slot dinomori kiri ke kanan, atas ke bawah: A001-A021 baris atas, A022-A039 pulau tengah, A040-A060 baris bawah.
 
@@ -81,9 +100,11 @@ Saat QR di-scan di gerbang keluar, biaya parkir dihitung `PARKIR_HOURLY_RATE` (d
 | GET | `/api/floors/{id}/slots?zone=A` | Status slot di lantai, bisa disaring per zona |
 | GET | `/api/floor-plan` | Denah satu blok (kolom, bay, CORE) untuk menggambar zona |
 | GET | `/api/realtime` | Alamat WebSocket Reverb untuk klien |
-| POST | `/api/reservations` | Buat reservasi: `slot_id`, `name`, `plate_number`. Balas 409 jika slot tidak tersedia |
+| POST | `/api/reservations` | Buat reservasi: `slot_id`, `name`, `plate_number`. Balas 409 jika slot tidak tersedia atau plat sudah punya reservasi aktif |
 | GET | `/api/reservations/{kode}` | Status reservasi, batas waktu, lama parkir, dan `qr_svg_url` |
 | POST | `/api/reservations/{kode}/pay` | Bayar biaya admin (simulasi) |
+| POST | `/api/reservations/{kode}/cancel` | Batalkan sebelum masuk gerbang; `refund_amount` terisi jika dalam 5 menit setelah bayar |
+| POST | `/api/reservations/{kode}/reports` | Lapor ke security: `type` (`occupied`, `blocked`, `other`) dan `note` opsional. Balasan berisi laporan dan reservasi terbaru (slot bisa sudah pindah ke pengganti) |
 | POST | `/api/sensor-readings` | Untuk gateway sensor, wajib header `X-Sensor-Token` |
 
 Contoh kiriman gateway:
@@ -108,6 +129,8 @@ Balasan berisi jumlah pembacaan yang diterima (`accepted`), jumlah slot yang ber
 | `floor.{id}` | `slots.changed` | Daftar slot yang berubah (`id`, `code`, `zone`, `status`), maksimal 100 per pesan |
 
 ## Belum dikerjakan
+
+- Login pengunjung dengan OTP nomor HP (riwayat dan tiket masih tersimpan per browser/HP).
 
 - Payment gateway sungguhan untuk biaya admin reservasi.
 - Penyesuaian kode slot dan ID sensor dengan instalasi asli di mall (susunan blok sudah mengikuti denah asli).

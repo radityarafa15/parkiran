@@ -15,9 +15,9 @@
     </nav>
 
     <div class="stats">
-        <div class="card stat"><span class="muted">Pendapatan biaya admin</span><span class="big">{{ $rp($stats['revenue']) }}</span><span class="muted small">dari {{ $stats['paid'] }} reservasi dibayar</span></div>
+        <div class="card stat"><span class="muted">Pendapatan biaya admin</span><span class="big">{{ $rp($stats['revenue']) }}</span><span class="muted small">dari {{ $stats['paid'] }} reservasi dibayar{{ $stats['refunded'] ? ', dikurangi refund '.$rp($stats['refunded']) : '' }}</span></div>
         <div class="card stat"><span class="muted">Pendapatan biaya parkir</span><span class="big">{{ $rp($stats['parking']) }}</span><span class="muted small">{{ $rp(config('parkir.hourly_rate')) }} per jam, dari {{ $stats['done'] }} yang sudah keluar</span></div>
-        <div class="card stat"><span class="muted">Reservasi dibuat</span><span class="big">{{ $stats['created'] }}</span><span class="muted small">{{ $stats['unpaid'] }} batal karena tidak dibayar</span></div>
+        <div class="card stat"><span class="muted">Reservasi dibuat</span><span class="big">{{ $stats['created'] }}</span><span class="muted small">{{ $stats['unpaid'] }} batal karena tidak dibayar, {{ $stats['cancelled'] }} dibatalkan pengunjung</span></div>
         <div class="card stat"><span class="muted">Hangus (sudah bayar, tidak masuk)</span><span class="big">{{ $stats['forfeited'] }}</span><span class="muted small">{{ $stats['paid'] ? round($stats['forfeited'] / $stats['paid'] * 100) : 0 }}% dari yang dibayar</span></div>
         <div class="card stat"><span class="muted">Sedang parkir sekarang</span><span class="big">{{ $stats['parked'] }}</span><span class="muted small">{{ $stats['waiting'] }} menunggu masuk</span></div>
         <div class="card stat"><span class="muted">Selesai</span><span class="big">{{ $stats['done'] }}</span><span class="muted small">rata-rata parkir {{ $stats['avg_minutes'] === null ? '-' : \App\Models\Reservation::formatDuration($stats['avg_minutes']) }}</span></div>

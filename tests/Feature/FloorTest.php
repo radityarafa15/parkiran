@@ -97,12 +97,12 @@ class FloorTest extends TestCase
         $this->get(route('floors.show', $floor))->assertOk()->assertSee('Zona B')->assertSee('B007')->assertSee('s-available');
     }
 
-    public function test_seeder_creates_6995_slots_and_simulator_reports_every_sensor(): void
+    public function test_seeder_creates_24000_slots_and_simulator_reports_every_sensor(): void
     {
         $this->seed();
 
         $this->assertSame(3, Floor::count());
-        $this->assertSame(6995, Slot::count());
+        $this->assertSame(24000, Slot::count());
         $this->assertTrue(Slot::where('code', 'P1-A001')->exists());
 
         $this->artisan('parkir:simulate', ['--once' => true])->assertSuccessful();

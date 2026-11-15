@@ -15,6 +15,8 @@ Route::get('/floors/{floor}/slots', [FloorController::class, 'slots']);
 Route::post('/reservations', [ReservationController::class, 'store'])->middleware('throttle:10,1');
 Route::get('/reservations/{reservation}', [ReservationController::class, 'show']);
 Route::post('/reservations/{reservation}/pay', [ReservationController::class, 'pay']);
+Route::post('/reservations/{reservation}/cancel', [ReservationController::class, 'cancel']);
+Route::post('/reservations/{reservation}/reports', [ReservationController::class, 'report'])->middleware('throttle:5,1');
 
 Route::post('/sensor-readings', [SensorReadingController::class, 'store'])
     ->middleware([EnsureSensorToken::class, 'throttle:600,1']);
