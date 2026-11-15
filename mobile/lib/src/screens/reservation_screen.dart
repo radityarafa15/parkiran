@@ -22,6 +22,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
   Reservation? _reservation;
   String? _error;
   bool _paying = false;
+  bool _busy = false;
   Timer? _clock;
   Timer? _refresh;
 
@@ -80,6 +81,70 @@ class _ReservationScreenState extends State<ReservationScreen> {
     }
   }
 
+  /// Konfirmasi dulu: dialog menyebut apakah biaya admin dikembalikan.
+  Future<void> _cancel(Reservation r) async {
+    final refund = r.status == ReservationStatus.paid && r.refundableNow;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Batalkan reservasi slot ini?'),
+        content: Text(switch (r.status) {
+          ReservationStatus.pending => 'Slot ${r.slotCode} akan dilepas. Belum ada biaya yang dibayar.',
+          _ when refund =>
+            'Kamu masih dalam 5 menit pertama (sampai ${formatTime(r.refundableUntil!)}). '
+                'Biaya ${formatRupiah(r.fee)} dikembalikan penuh ke metode pembayaranmu.',
+          _ =>
+            'Sudah lewat 5 menit sejak bayar, jadi biaya ${formatRupiah(r.fee)} tidak dikembalikan. Slot ${r.slotCode} akan dilepas.',
+        }),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: occupiedColor),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Ya, batalkan'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _run(() => AppScope.of(context).api.cancelReservation(widget.code));
+  }
+
+  Future<void> _report() async {
+    final result = await showModalBottomSheet<(String, String)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _ReportSheet(),
+    );
+    if (result == null || !mounted) return;
+    final (type, note) = result;
+    final before = _reservation?.slotCode;
+    await _run(() => AppScope.of(context).api.reportProblem(widget.code, type: type, note: note.isEmpty ? null : note));
+    final after = _reservation?.slotCode;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          after != null && after != before
+              ? 'Laporan diterima security. Slot pengganti $after sudah ditahan untukmu; QR tetap sama.'
+              : 'Laporan diterima security. Petugas segera menuju lokasi.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _run(Future<Reservation> Function() action) async {
+    setState(() => _busy = true);
+    try {
+      final reservation = await action();
+      if (mounted) setState(() => (_reservation = reservation, _error = null));
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = _reservation;
@@ -106,6 +171,45 @@ class _ReservationScreenState extends State<ReservationScreen> {
               Card(
                 child: Padding(padding: const EdgeInsets.all(16), child: _body(context, r)),
               ),
+              if (r.canCancel) ...[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: occupiedColor),
+                  onPressed: _busy ? null : () => _cancel(r),
+                  child: const Text('Batalkan reservasi'),
+                ),
+                if (r.status == ReservationStatus.paid)
+                  Text(
+                    r.refundableNow
+                        ? 'Batal sebelum ${formatTime(r.refundableUntil!)} dan biaya ${formatRupiah(r.fee)} dikembalikan penuh.'
+                        : 'Sudah lewat 5 menit setelah bayar: biaya admin tidak dikembalikan jika dibatalkan.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+              if (r.canReport) ...[
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Slot bermasalah?', style: Theme.of(context).textTheme.titleMedium),
+                        for (final report in r.reports)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              '${report.statusLabel} · ${report.typeLabel}'
+                              '${report.replacementSlot != null ? ' · slot pengganti ${report.replacementSlot}' : ''}',
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        OutlinedButton(onPressed: _busy ? null : _report, child: const Text('Lapor ke security')),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Card(
                 child: Padding(
@@ -220,6 +324,29 @@ class _ReservationScreenState extends State<ReservationScreen> {
           const Text('Terima kasih.'),
         ],
       ),
+      ReservationStatus.cancelled => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Reservasi dibatalkan${r.cancelledAt != null ? ' pukul ${formatTime(r.cancelledAt!)}' : ''} dan slotnya sudah dilepas.',
+          ),
+          if (r.refundAmount > 0) ...[
+            const SizedBox(height: 8),
+            const Text('Dikembalikan'),
+            Text(formatRupiah(r.refundAmount), style: theme.textTheme.displaySmall?.copyWith(color: availableColor)),
+            Text(
+              'Dibatalkan dalam 5 menit setelah bayar, jadi biaya admin dikembalikan penuh (simulasi).',
+              style: theme.textTheme.bodySmall,
+            ),
+          ] else if (r.paidAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Dibatalkan lebih dari 5 menit setelah bayar, jadi biaya admin tidak dikembalikan.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
       ReservationStatus.expired => Text(
         r.paidAt != null
             ? 'QR tidak di-scan di gerbang masuk sebelum batas waktunya, jadi reservasi hangus dan biaya admin tidak dikembalikan.'
@@ -277,9 +404,73 @@ class _Facts extends StatelessWidget {
         row('Slot  ', '${r.slotCode} · ${r.floorName}'),
         row('Nama  ', r.name),
         row('Plat nomor  ', r.plateNumber),
-        row('Biaya admin  ', '${formatRupiah(r.fee)}${r.paidAt != null ? ' · lunas' : ''}'),
+        row(
+          'Biaya admin  ',
+          '${formatRupiah(r.fee)}${r.paidAt != null ? ' · lunas' : ''}${r.refundAmount > 0 ? ' · dikembalikan' : ''}',
+        ),
         row('Kode  ', r.code),
       ],
+    );
+  }
+}
+
+/// Pilih jenis masalah dan catatan, lalu kirim ke security.
+class _ReportSheet extends StatefulWidget {
+  const _ReportSheet();
+
+  @override
+  State<_ReportSheet> createState() => _ReportSheetState();
+}
+
+class _ReportSheetState extends State<_ReportSheet> {
+  String _type = SlotReport.types.keys.first;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Apa masalahnya?', style: Theme.of(context).textTheme.titleLarge),
+          RadioGroup<String>(
+            groupValue: _type,
+            onChanged: (value) => setState(() => _type = value ?? _type),
+            child: Column(
+              children: [
+                for (final entry in SlotReport.types.entries)
+                  RadioListTile<String>(value: entry.key, title: Text(entry.value), contentPadding: EdgeInsets.zero),
+              ],
+            ),
+          ),
+          TextField(
+            controller: _note,
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Catatan (opsional)',
+              hintText: 'Mis. mobil putih plat B 9876 XY',
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, (_type, _note.text.trim())),
+            child: const Text('Kirim ke security'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Jika slotmu ditempati mobil lain, slot kosong terdekat langsung ditahan untukmu dan QR tetap sama.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }

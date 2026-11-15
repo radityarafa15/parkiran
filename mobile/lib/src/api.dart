@@ -44,6 +44,18 @@ class ParkirApi {
     return Reservation.fromJson(await _post('/api/reservations/$code/pay', const {}) as Map<String, dynamic>);
   }
 
+  /// Batalkan sebelum masuk gerbang. Refund penuh jika dalam 5 menit setelah bayar.
+  Future<Reservation> cancelReservation(String code) async {
+    return Reservation.fromJson(await _post('/api/reservations/$code/cancel', const {}) as Map<String, dynamic>);
+  }
+
+  /// Lapor ke security. Jika slot ditempati mobil lain, server menahan slot
+  /// pengganti terdekat; reservasi yang dikembalikan sudah memakai slot baru.
+  Future<Reservation> reportProblem(String code, {required String type, String? note}) async {
+    final json = await _postJson('/api/reservations/$code/reports', {'type': type, 'note': note});
+    return Reservation.fromJson(json['reservation'] as Map<String, dynamic>);
+  }
+
   Future<FloorPlan> floorPlan() async {
     return FloorPlan.fromJson(await _get('/api/floor-plan') as Map<String, dynamic>);
   }
@@ -60,7 +72,9 @@ class ParkirApi {
     return (jsonDecode(response.body) as Map<String, dynamic>)['data'];
   }
 
-  Future<Object?> _post(String path, Map<String, Object?> body) async {
+  Future<Object?> _post(String path, Map<String, Object?> body) async => (await _postJson(path, body))['data'];
+
+  Future<Map<String, dynamic>> _postJson(String path, Map<String, Object?> body) async {
     final response = await _client.post(
       Uri.parse('$baseUrl$path'),
       headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
@@ -68,12 +82,12 @@ class ParkirApi {
     );
     final json = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 400) {
-      // 409: slot sudah diambil orang lain; 422: isian tidak valid.
+      // 409: slot sudah diambil orang lain atau plat sudah punya reservasi aktif; 422: isian tidak valid.
       final errors = json['errors'] as Map<String, dynamic>?;
       final first = errors?.values.whereType<List<dynamic>>().firstOrNull?.firstOrNull;
       throw ApiException((first ?? json['message'] ?? 'Server membalas ${response.statusCode}').toString());
     }
-    return json['data'];
+    return json;
   }
 }
 

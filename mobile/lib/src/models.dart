@@ -102,7 +102,8 @@ enum ReservationStatus {
   paid,
   parked,
   done,
-  expired;
+  expired,
+  cancelled;
 
   static ReservationStatus parse(String? value) =>
       ReservationStatus.values.firstWhere((s) => s.name == value, orElse: () => ReservationStatus.expired);
@@ -130,6 +131,11 @@ class Reservation {
     this.parkedHours,
     this.hourlyRate,
     this.parkingFee,
+    this.cancelledAt,
+    this.refundAmount = 0,
+    this.canCancel = false,
+    this.refundableUntil,
+    this.reports = const [],
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
@@ -154,6 +160,13 @@ class Reservation {
       parkedHours: json['parked_hours'] as int?,
       hourlyRate: json['hourly_rate'] as int?,
       parkingFee: json['parking_fee'] as int?,
+      cancelledAt: time('cancelled_at'),
+      refundAmount: json['refund_amount'] as int? ?? 0,
+      canCancel: json['can_cancel'] as bool? ?? false,
+      refundableUntil: time('refundable_until'),
+      reports: (json['reports'] as List<dynamic>? ?? const [])
+          .map((r) => SlotReport.fromJson(r as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -177,12 +190,66 @@ class Reservation {
   /// Biaya parkir: ditagih saat keluar, atau perkiraan selama masih parkir.
   final int? parkingFee;
 
+  final DateTime? cancelledAt;
+
+  /// Biaya admin yang dikembalikan (batal dalam 5 menit setelah bayar).
+  final int refundAmount;
+
+  /// Masih boleh dibatalkan (belum dibayar, atau sudah dibayar dan belum masuk).
+  final bool canCancel;
+
+  /// Batal sebelum waktu ini = biaya admin dikembalikan penuh.
+  final DateTime? refundableUntil;
+
+  /// Laporan ke security, terbaru di depan.
+  final List<SlotReport> reports;
+
+  bool get refundableNow => refundableUntil != null && DateTime.now().isBefore(refundableUntil!);
+
+  /// Bisa melapor ke security: sudah dibayar atau sedang parkir.
+  bool get canReport => status == ReservationStatus.paid || status == ReservationStatus.parked;
+
   /// Batas waktu yang sedang berjalan: bayar, lalu masuk gerbang.
   DateTime? get deadline => switch (status) {
     ReservationStatus.pending => payBefore,
     ReservationStatus.paid => expiresAt,
     _ => null,
   };
+}
+
+/// Laporan pengunjung ke security tentang slot reservasinya.
+class SlotReport {
+  const SlotReport({
+    required this.type,
+    required this.typeLabel,
+    required this.status,
+    required this.statusLabel,
+    this.note,
+    this.replacementSlot,
+  });
+
+  factory SlotReport.fromJson(Map<String, dynamic> json) => SlotReport(
+    type: json['type'] as String,
+    typeLabel: json['type_label'] as String,
+    status: json['status'] as String,
+    statusLabel: json['status_label'] as String,
+    note: json['note'] as String?,
+    replacementSlot: json['replacement_slot'] as String?,
+  );
+
+  /// Jenis masalah yang bisa dipilih, sama dengan SlotReport::TYPES di server.
+  static const types = {
+    'occupied': 'Slot ditempati mobil lain',
+    'blocked': 'Slot terhalang barang',
+    'other': 'Lainnya',
+  };
+
+  final String type;
+  final String typeLabel;
+  final String status;
+  final String statusLabel;
+  final String? note;
+  final String? replacementSlot;
 }
 
 /// Denah satu blok (= satu zona), sama di semua lantai. Lihat config parkir.map.
