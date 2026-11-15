@@ -41,7 +41,7 @@ class ReservationReportController extends Controller
                 'date' => Carbon::parse($date, self::TIMEZONE),
                 'created' => $day->count(),
                 'paid' => $day->whereNotNull('paid_at')->count(),
-                'revenue' => $day->whereNotNull('paid_at')->sum('fee'),
+                'revenue' => $day->whereNotNull('paid_at')->sum('fee') - $day->sum('refund_amount'),
                 'parking' => $day->sum('parking_fee'),
                 'expired' => $day->filter(fn (Reservation $r) => $r->currentStatus() === Reservation::EXPIRED && $r->paid_at)->count(),
             ]);
@@ -52,7 +52,9 @@ class ReservationReportController extends Controller
             'stats' => [
                 'created' => $reservations->count(),
                 'paid' => $paid->count(),
-                'revenue' => $paid->sum('fee'),
+                'revenue' => $paid->sum('fee') - $reservations->sum('refund_amount'),
+                'refunded' => $reservations->sum('refund_amount'),
+                'cancelled' => $byStatus->get(Reservation::CANCELLED, 0),
                 'parking' => $reservations->sum('parking_fee'),
                 'waiting' => $byStatus->get(Reservation::PAID, 0),
                 'parked' => Reservation::where('status', Reservation::PARKED)->count(),

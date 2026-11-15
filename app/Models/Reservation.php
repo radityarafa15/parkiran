@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Reservation extends Model
@@ -23,12 +26,16 @@ class Reservation extends Model
     /** Tidak dibayar atau tidak masuk sebelum batas waktunya. */
     public const EXPIRED = 'expired';
 
+    /** Dibatalkan pengunjung sebelum masuk gerbang. */
+    public const CANCELLED = 'cancelled';
+
     /** Huruf kode tanpa karakter yang mudah tertukar (0/O, 1/I/L). */
     private const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
     protected $fillable = [
         'code', 'slot_id', 'name', 'plate_number', 'fee', 'status',
         'pay_before', 'paid_at', 'expires_at', 'checked_in_at', 'checked_out_at', 'parking_fee',
+        'cancelled_at', 'refund_amount',
     ];
 
     protected function casts(): array
@@ -41,12 +48,58 @@ class Reservation extends Model
             'expires_at' => 'datetime',
             'checked_in_at' => 'datetime',
             'checked_out_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'refund_amount' => 'integer',
         ];
     }
 
     public function slot(): BelongsTo
     {
         return $this->belongsTo(Slot::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(SlotReport::class)->latest('id');
+    }
+
+    /**
+     * Reservasi yang masih memegang slot: belum dibayar dalam batas waktu,
+     * sudah dibayar dan belum hangus, atau sedang parkir.
+     */
+    public function scopeActive(Builder $query): void
+    {
+        $now = now();
+
+        $query->where(fn ($q) => $q
+            ->where(fn ($q) => $q->where('status', self::PENDING)->where('pay_before', '>', $now))
+            ->orWhere(fn ($q) => $q->where('status', self::PAID)->where('expires_at', '>', $now))
+            ->orWhere('status', self::PARKED));
+    }
+
+    /**
+     * Batas waktu batal dengan biaya admin dikembalikan penuh.
+     */
+    public function refundableUntil(): ?Carbon
+    {
+        return $this->paid_at?->copy()->addMinutes(config('parkir.reservation.refund_minutes'));
+    }
+
+    public function canCancel(): bool
+    {
+        return in_array($this->currentStatus(), [self::PENDING, self::PAID], true);
+    }
+
+    /**
+     * Biaya yang dikembalikan jika dibatalkan sekarang.
+     */
+    public function refundIfCancelledNow(): int
+    {
+        if ($this->currentStatus() !== self::PAID) {
+            return 0;
+        }
+
+        return $this->refundableUntil()->isFuture() ? $this->fee : 0;
     }
 
     public static function generateCode(): string
@@ -81,6 +134,7 @@ class Reservation extends Model
             self::PARKED => 'Sedang parkir',
             self::DONE => 'Selesai',
             self::EXPIRED => $this->paid_at ? 'Hangus' : 'Batal (tidak dibayar)',
+            self::CANCELLED => $this->refund_amount > 0 ? 'Dibatalkan · dikembalikan' : 'Dibatalkan',
         };
     }
 
@@ -136,12 +190,17 @@ class Reservation extends Model
 
     public static function normalizePlate(string $plate): string
     {
-        return Str::of($plate)->upper()->replaceMatches('/[^A-Z0-9]+/', ' ')->trim()->toString();
+        // "b1234xyz", "B-1234-XYZ", dan "B 1234 XYZ" menjadi plat yang sama.
+        return Str::of($plate)->upper()
+            ->replaceMatches('/[^A-Z0-9]+/', ' ')
+            ->replaceMatches('/(?<=[A-Z])(?=\d)|(?<=\d)(?=[A-Z])/', ' ')
+            ->squish()
+            ->toString();
     }
 
     public function toApiArray(): array
     {
-        $this->loadMissing('slot.floor');
+        $this->loadMissing(['slot.floor', 'reports.replacementSlot']);
 
         return [
             'code' => $this->code,
@@ -164,6 +223,11 @@ class Reservation extends Model
             'parked_hours' => $this->parkedHours(),
             'hourly_rate' => config('parkir.hourly_rate'),
             'parking_fee' => $this->parkingFee(),
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+            'refund_amount' => $this->refund_amount ?? 0,
+            'can_cancel' => $this->canCancel(),
+            'refundable_until' => $this->currentStatus() === self::PAID ? $this->refundableUntil()->toIso8601String() : null,
+            'reports' => $this->reports->map->toApiArray()->values()->all(),
             'qr_svg_url' => route('reservations.qr', $this),
         ];
     }

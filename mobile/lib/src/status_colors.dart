@@ -42,4 +42,5 @@ Color reservationColor(ReservationStatus status) => switch (status) {
   ReservationStatus.paid => reservedColor,
   ReservationStatus.parked || ReservationStatus.done => availableColor,
   ReservationStatus.expired => occupiedColor,
+  ReservationStatus.cancelled => unknownColor,
 };

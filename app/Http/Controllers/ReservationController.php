@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ReservationException;
 use App\Models\Reservation;
 use App\Models\Slot;
+use App\Models\SlotReport;
 use App\Services\ReservationService;
 use chillerlan\QRCode\Output\QROutputInterface;
 use chillerlan\QRCode\QRCode;
@@ -59,6 +60,12 @@ class ReservationController extends Controller
         try {
             $reservation = $service->reserve($slot, $data['name'], $data['plate_number']);
         } catch (ReservationException $e) {
+            // Tiket aktif hanya dibuka jika memang dibuat dari browser ini;
+            // selain itu QR-nya bisa diambil orang yang tahu platnya.
+            if ($e->active !== null && in_array($e->active->code, $request->session()->get(self::SESSION_KEY, []), true)) {
+                return redirect()->route('reservations.show', $e->active)->with('error', $e->getMessage());
+            }
+
             return redirect()->route('floors.show', $slot->floor)->with('error', $e->getMessage());
         }
 
@@ -70,7 +77,8 @@ class ReservationController extends Controller
     public function show(Reservation $reservation): View
     {
         return view('reservations.show', [
-            'reservation' => $reservation->load('slot.floor'),
+            'reservation' => $reservation->load(['slot.floor', 'reports.replacementSlot']),
+            'reportTypes' => SlotReport::TYPES,
         ]);
     }
 
@@ -87,6 +95,37 @@ class ReservationController extends Controller
 
         return redirect()->route('reservations.show', $reservation)
             ->with('status', 'Pembayaran berhasil. Tunjukkan QR ini di gerbang masuk.');
+    }
+
+    public function cancel(Reservation $reservation, ReservationService $service): RedirectResponse
+    {
+        try {
+            $service->cancel($reservation);
+        } catch (ReservationException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('reservations.show', $reservation)->with('status', $reservation->refund_amount > 0
+            ? 'Reservasi dibatalkan. Biaya '.Reservation::formatRupiah($reservation->refund_amount).' dikembalikan ke metode pembayaranmu.'
+            : 'Reservasi dibatalkan dan slot dilepas.');
+    }
+
+    public function report(Request $request, Reservation $reservation, ReservationService $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', 'in:'.implode(',', array_keys(SlotReport::TYPES))],
+            'note' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        try {
+            $report = $service->report($reservation, $data['type'], $data['note'] ?? null);
+        } catch (ReservationException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('reservations.show', $reservation)->with('status', $report->replacementSlot
+            ? "Laporan diterima security. Slot pengganti {$report->replacementSlot->code} sudah ditahan untukmu; QR tetap sama."
+            : 'Laporan diterima security. Petugas segera menuju lokasi.');
     }
 
     public function qr(Reservation $reservation): Response

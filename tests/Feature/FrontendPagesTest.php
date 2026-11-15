@@ -14,9 +14,12 @@ class FrontendPagesTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $plates = 0;
+
+    /** Tiap reservasi memakai plat berbeda: satu plat hanya boleh satu reservasi aktif. */
     private function reservation(): Reservation
     {
-        return app(ReservationService::class)->reserve(Slot::factory()->available()->create(), 'Rafa', 'B 1 RF');
+        return app(ReservationService::class)->reserve(Slot::factory()->available()->create(), 'Rafa', 'B '.++$this->plates.' RF');
     }
 
     public function test_floor_page_lays_each_zone_out_like_the_real_floor_plan(): void

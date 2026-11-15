@@ -9,7 +9,12 @@ import 'package:parkiran/src/api.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Map<String, Object?> reservationJson(String status, {String label = 'Menunggu pembayaran'}) {
+Map<String, Object?> reservationJson(
+  String status, {
+  String label = 'Menunggu pembayaran',
+  String slot = 'P1-A001',
+  List<Map<String, Object?>> reports = const [],
+}) {
   final now = DateTime.now().toUtc();
   return {
     'code': 'RSVABCD2345',
@@ -18,7 +23,7 @@ Map<String, Object?> reservationJson(String status, {String label = 'Menunggu pe
     'name': 'Rafa',
     'plate_number': 'B 1234 XYZ',
     'fee': 10000,
-    'slot': {'id': 1, 'code': 'P1-A001', 'floor': 'Lantai P1'},
+    'slot': {'id': 1, 'code': slot, 'floor': 'Lantai P1'},
     'pay_before': now.add(const Duration(minutes: 15)).toIso8601String(),
     'paid_at': status == 'pending' ? null : now.toIso8601String(),
     'expires_at': status == 'pending' ? null : now.add(const Duration(hours: 2)).toIso8601String(),
@@ -28,6 +33,11 @@ Map<String, Object?> reservationJson(String status, {String label = 'Menunggu pe
     'parked_hours': status == 'done' ? 3 : null,
     'hourly_rate': 5000,
     'parking_fee': status == 'done' ? 15000 : null,
+    'cancelled_at': status == 'cancelled' ? now.toIso8601String() : null,
+    'refund_amount': status == 'cancelled' ? 10000 : 0,
+    'can_cancel': status == 'pending' || status == 'paid',
+    'refundable_until': status == 'paid' ? now.add(const Duration(minutes: 5)).toIso8601String() : null,
+    'reports': reports,
     'qr_svg_url': 'http://parkir.test/reservasi/RSVABCD2345/qr.svg',
   };
 }
@@ -80,6 +90,25 @@ void main() {
       } else if (path == '/api/reservations/RSVABCD2345/pay') {
         status = 'paid';
         body = {'data': reservationJson(status, label: 'Menunggu masuk gerbang')};
+      } else if (path == '/api/reservations/RSVABCD2345/cancel') {
+        status = 'cancelled';
+        body = {'data': reservationJson(status, label: 'Dibatalkan · dikembalikan')};
+      } else if (path == '/api/reservations/RSVABCD2345/reports') {
+        final report = {
+          'id': 1,
+          'type': 'occupied',
+          'type_label': 'Slot ditempati mobil lain',
+          'note': 'Mobil putih',
+          'status': 'new',
+          'status_label': 'Baru',
+          'replacement_slot': 'P1-A003',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        code = 201;
+        body = {
+          'data': report,
+          'reservation': reservationJson('paid', label: 'Menunggu masuk gerbang', slot: 'P1-A003', reports: [report]),
+        };
       } else if (path == '/api/reservations/RSVABCD2345') {
         body = {
           'data': reservationJson(status, label: status == 'paid' ? 'Menunggu masuk gerbang' : 'Menunggu pembayaran'),
@@ -189,6 +218,66 @@ void main() {
 
     expect(find.text('P1-A001 · Lantai P1'), findsOneWidget);
     expect(find.text('B 1234 XYZ · Menunggu masuk gerbang'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  Future<void> openSavedReservation(WidgetTester tester, ParkirApi api) async {
+    // Layar tinggi supaya QR, tombol batal, dan kartu lapor tampil sekaligus.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({
+      'reservation_codes': ['RSVABCD2345'],
+    });
+    await tester.pumpWidget(ParkiranApp(api: api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reservasi saya'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('P1-A001 · Lantai P1'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('cancelling within five minutes of paying shows the refund', (tester) async {
+    status = 'paid';
+    await openSavedReservation(tester, api());
+
+    final cancel = find.widgetWithText(OutlinedButton, 'Batalkan reservasi');
+    expect(find.textContaining('dikembalikan penuh'), findsOneWidget);
+    await tester.tap(cancel);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Batalkan reservasi slot ini?'), findsOneWidget);
+    expect(find.textContaining('Biaya Rp10.000 dikembalikan penuh'), findsOneWidget);
+    await tester.tap(find.text('Ya, batalkan'));
+    await tester.pumpAndSettle();
+
+    expect(posts.single.url.path, '/api/reservations/RSVABCD2345/cancel');
+    expect(find.text('Dibatalkan · dikembalikan'), findsOneWidget);
+    expect(find.text('Dikembalikan'), findsOneWidget);
+    expect(find.byType(QrImageView), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Batalkan reservasi'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('reporting a taken slot moves the ticket to the replacement slot', (tester) async {
+    status = 'paid';
+    await openSavedReservation(tester, api());
+
+    final report = find.widgetWithText(OutlinedButton, 'Lapor ke security');
+    await tester.tap(report);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Apa masalahnya?'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Mobil putih');
+    await tester.tap(find.text('Kirim ke security'));
+    await tester.pumpAndSettle();
+
+    expect(jsonDecode(posts.single.body), {'type': 'occupied', 'note': 'Mobil putih'});
+    expect(find.textContaining('Slot pengganti P1-A003 sudah ditahan'), findsOneWidget);
+    expect(find.text('Reservasi P1-A003'), findsOneWidget);
+    expect(find.textContaining('Baru · Slot ditempati mobil lain · slot pengganti P1-A003'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
   });

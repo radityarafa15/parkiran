@@ -51,6 +51,17 @@
         .badge.paid { background: var(--reserved); }
         .badge.parked, .badge.done { background: var(--available); }
         .badge.expired { background: var(--occupied); }
+        .badge.cancelled { background: var(--muted); }
+        .badge.new { background: var(--occupied); }
+        .badge.handling { background: var(--busy); }
+        .form button.danger { background: var(--card); color: var(--occupied); border: 1px solid var(--occupied); }
+        .form select, .form textarea { font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+        .report-list { display: grid; gap: 12px; }
+        .report-list .card { margin-top: 0; }
+        .report-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+        .report-actions { display: flex; gap: 8px; }
+        .report-actions form { margin: 0; flex: 1; }
+        .report-actions button { width: 100%; }
         .countdown { font-size: 1.05rem; margin-top: 0; }
         .countdown strong { font-family: ui-monospace, monospace; font-size: 1.6rem; display: block; }
         .countdown[data-urgent="1"] strong { color: var(--occupied); }

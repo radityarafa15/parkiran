@@ -33,6 +33,16 @@ class UserFactory extends Factory
         ];
     }
 
+    public function gateOfficer(): static
+    {
+        return $this->state(fn () => ['role' => User::GATE]);
+    }
+
+    public function security(): static
+    {
+        return $this->state(fn () => ['role' => User::SECURITY]);
+    }
+
     /**
      * Indicate that the model's email address should be unverified.
      */

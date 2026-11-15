@@ -8,9 +8,9 @@ use Illuminate\Support\Str;
 
 class MakeAdmin extends Command
 {
-    protected $signature = 'parkir:make-admin {email} {--name=Admin Parkir} {--generate : Buat kata sandi acak tanpa bertanya}';
+    protected $signature = 'parkir:make-admin {email} {--name=Admin Parkir} {--role=admin : admin, petugas (gerbang), atau security} {--generate : Buat kata sandi acak tanpa bertanya}';
 
-    protected $description = 'Buat akun admin (atau atur ulang kata sandinya) untuk dashboard sensor';
+    protected $description = 'Buat akun admin, petugas gerbang, atau security (atau atur ulang kata sandinya)';
 
     public function handle(): int
     {
@@ -18,6 +18,14 @@ class MakeAdmin extends Command
 
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->error('Email tidak valid.');
+
+            return self::FAILURE;
+        }
+
+        $role = $this->option('role');
+
+        if (! in_array($role, User::ROLES, true)) {
+            $this->error('Peran harus salah satu dari: '.implode(', ', User::ROLES).'.');
 
             return self::FAILURE;
         }
@@ -33,10 +41,10 @@ class MakeAdmin extends Command
 
         User::updateOrCreate(
             ['email' => $email],
-            ['name' => $this->option('name'), 'password' => $password],
+            ['name' => $this->option('name'), 'password' => $password, 'role' => $role],
         );
 
-        $this->info("Akun admin {$email} siap. Masuk di /admin/login.");
+        $this->info('Akun '.User::ROLE_LABELS[$role]." {$email} siap. Masuk di /admin/login.");
 
         if ($generated) {
             $this->line("Kata sandi: {$password}");

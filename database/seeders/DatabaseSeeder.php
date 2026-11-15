@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Lantai dan slot mobil sesuai config('parkir.layout'), total 6.995 slot.
+     * Lantai dan slot mobil sesuai config('parkir.layout'), total 24.000 slot.
      * Slot dibagi ke zona A, B, C, ... berisi config('parkir.zone_size') slot
      * (satu blok denah). Kode slot: P1-A001, ID sensor: US-P1-A001.
      * Slot lama yang tidak ada lagi di susunan ini dihapus.
